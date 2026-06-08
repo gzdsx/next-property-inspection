@@ -9,7 +9,7 @@ export const {handlers, auth} = NextAuth({
             id: "sanctum",
             name: "Laravel Backend",
             credentials: {
-                account: {label: "Account", type: "text"},
+                email: {label: "Emial", type: "text"},
                 password: {label: "Password", type: "password"}
             },
             async authorize(credentials) {
@@ -34,7 +34,6 @@ export const {handlers, auth} = NextAuth({
             if (user) {
                 token.id = user.id;
                 token.avatar = (user as any).avatar;
-                token.role = (user as any).role;
                 token.accessToken = (user as any).accessToken;
             }
             return token;
@@ -42,7 +41,6 @@ export const {handlers, auth} = NextAuth({
         // 2. 将 JWT 中的信息暴露给前端 session
         async session({session, token}) {
             (session as any).accessToken = token.accessToken as string;
-            (session as any).user.role = token.role as string;
             (session as any).user.avatar = token.avatar as string;
             (session as any).user.id = token.id;
             return session;

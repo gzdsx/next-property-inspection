@@ -1,56 +1,64 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import {auth} from "@/auth";
+import type {Metadata} from "next";
+import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+    variable: "--font-geist-sans",
+    subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+    variable: "--font-geist-mono",
+    subsets: ["latin"],
 });
 
-import { LanguageProvider } from "@/contexts/LanguageContext";
+import {LanguageProvider} from "@/contexts/LanguageContext";
+import {LocaleProvider} from "@/contexts/LocaleContext";
+import LoginClient2 from "@/components/frontend/LoginClient2";
 
 export const metadata: Metadata = {
-  title: "AI Property Inspection",
-  description: "AI-powered property inspection system",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Inspection AI",
-  },
+    title: "AI Property Inspection",
+    description: "AI-powered property inspection system",
+    manifest: "/manifest.json",
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "default",
+        title: "Inspection AI",
+    },
 };
 
 export const viewport = {
-  themeColor: "#2563eb",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+    themeColor: "#2563eb",
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
+export default async function RootLayout({
+                                       children,
+                                   }: Readonly<{
+    children: React.ReactNode;
 }>) {
-  return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      suppressHydrationWarning
-    >
-      <head>
-      </head>
-      <body className="antialiased" suppressHydrationWarning>
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
-      </body>
-    </html>
-  );
+    const session = await auth();
+    return (
+        <html
+            lang="en"
+            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+            suppressHydrationWarning
+        >
+        <head>
+        </head>
+        <body className="antialiased" suppressHydrationWarning>
+        <LocaleProvider>
+            <LanguageProvider>
+                {
+                    session ? children : <LoginClient2/>
+                }
+            </LanguageProvider>
+        </LocaleProvider>
+        </body>
+        </html>
+    );
 }
