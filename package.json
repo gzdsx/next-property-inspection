@@ -8,7 +8,8 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"push": "git push --set-upstream origin main"
+		"push": "git push --set-upstream origin main",
+		"sync": "git pull && next build"
 	},
 	"dependencies": {
 		"@ant-design/icons": "^5.5.2",
