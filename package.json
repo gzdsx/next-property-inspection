@@ -8,7 +8,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"push": "git push --set-upstream origin main",
+		"backup": "git add . && git commit -m 'backup' && git push --set-upstream origin main",
 		"sync": "git pull && next build"
 	},
 	"dependencies": {
@@ -33,6 +33,7 @@
 		"clsx": "^2.1.1",
 		"embla-carousel-autoplay": "^8.6.0",
 		"embla-carousel-react": "^8.6.0",
+		"https-proxy-agent": "^9.1.0",
 		"js-cookie": "^3.0.8",
 		"jspdf": "^4.2.1",
 		"lucide-react": "^1.17.0",

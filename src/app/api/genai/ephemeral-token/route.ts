@@ -10,7 +10,7 @@ export async function POST() {
 
         const ai = new GoogleGenAI({
             apiKey,
-            httpOptions: {apiVersion: 'v1alpha'}
+            httpOptions: {apiVersion: 'v1alpha'},
         });
 
         // -------------------------------------------------------------------------

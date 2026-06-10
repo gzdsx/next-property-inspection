@@ -1,18 +1,30 @@
 {
-    "language": {
-        "zh": "Chinese",
-        "en": "English",
-        "toggleLanguage": "Toggle Language"
-    },
-    "login": {
-        "title": "Inspection System Login",
-        "description": "Please enter your work account to start the property inspection",
-        "name": "Username / Email",
-        "password": "Password",
-        "rememberMe": "Remember Me",
-        "forgotPassword": "<PASSWORD>",
-        "login": "Sign In",
-        "loginFail": "Login failed, please check your username and password",
-        "loginSuccess": "Login successful"
-    }
+	"language": {
+		"zh": "Chinese",
+		"en": "English",
+		"toggleLanguage": "Toggle Language"
+	},
+	"login": {
+		"title": "Inspection System Login",
+		"description": "Please enter your work account to start the property inspection",
+		"name": "Username / Email",
+		"password": "Password",
+		"rememberMe": "Remember Me",
+		"forgotPassword": "<PASSWORD>",
+		"login": "Sign In",
+		"loginFail": "Login failed, please check your username and password",
+		"loginSuccess": "Login successful"
+	},
+	"inspection": {
+		"appTitle": "AI Property Inspection",
+		"appSubtitle": "Smart Recognition · Auto Reports",
+		"step_title": "Pre-Inspection Preparation",
+		"upload_floorplan": "Upload Floor Plan (Optional)",
+		"upload_desc": "Helps AI better understand the layout of the property",
+		"address_label": "Property Address",
+		"address_placeholder": "Enter property address (e.g., 54 Carmel Street)",
+		"notes_label": "Areas of Concern",
+		"notes_placeholder": "e.g., New pet scratches in the master bedroom",
+		"start_btn": "Start Inspection"
+	}
 }

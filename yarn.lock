@@ -3018,6 +3018,11 @@ acorn@^8.15.0:
   resolved "https://registry.npmmirror.com/acorn/-/acorn-8.16.0.tgz"
   integrity sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==
 
+agent-base@9.0.0:
+  version "9.0.0"
+  resolved "https://mirrors.tencent.com/npm/agent-base/-/agent-base-9.0.0.tgz#ec9efb08314e1e75b0852d74aabf9a387f99834e"
+  integrity sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==
+
 agent-base@^7.1.2:
   version "7.1.4"
   resolved "https://mirrors.tencent.com/npm/agent-base/-/agent-base-7.1.4.tgz#e3cd76d4c548ee895d3c3fd8dc1f6c5b9032e7a8"
@@ -3590,7 +3595,7 @@ dayjs@^1.11.11:
   resolved "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.20.tgz"
   integrity sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==
 
-debug@4, debug@^4.1.0, debug@^4.3.1, debug@^4.3.2, debug@^4.4.0, debug@^4.4.3:
+debug@4, debug@^4.1.0, debug@^4.3.1, debug@^4.3.2, debug@^4.3.4, debug@^4.4.0, debug@^4.4.3:
   version "4.4.3"
   resolved "https://registry.npmmirror.com/debug/-/debug-4.4.3.tgz"
   integrity sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==
@@ -4456,6 +4461,15 @@ https-proxy-agent@^7.0.1:
   dependencies:
     agent-base "^7.1.2"
     debug "4"
+
+https-proxy-agent@^9.1.0:
+  version "9.1.0"
+  resolved "https://mirrors.tencent.com/npm/https-proxy-agent/-/https-proxy-agent-9.1.0.tgz#a9f60f79bc1578c37b166dd7f58b6bcb5c57e44b"
+  integrity sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==
+  dependencies:
+    agent-base "9.0.0"
+    debug "^4.3.4"
+    proxy-agent-negotiate "1.1.0"
 
 icu-minify@^4.9.1:
   version "4.9.1"
@@ -5686,6 +5700,11 @@ protobufjs@^7.5.4:
     "@protobufjs/utf8" "^1.1.1"
     "@types/node" ">=13.7.0"
     long "^5.3.2"
+
+proxy-agent-negotiate@1.1.0:
+  version "1.1.0"
+  resolved "https://mirrors.tencent.com/npm/proxy-agent-negotiate/-/proxy-agent-negotiate-1.1.0.tgz#de7d37aede9d71e74346125d6f484fac8092b615"
+  integrity sha512-N8IBcM3UgCVzz2L2Lqv8DVntDnnC8/hiV4nEDUPkqq72TPUgYWjQc+bdZlBPZK9LzPAvOY//gAt0S0DApoOXWQ==
 
 punycode.js@^2.3.1:
   version "2.3.1"

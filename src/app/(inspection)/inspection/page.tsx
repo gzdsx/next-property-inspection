@@ -199,12 +199,12 @@ export default function InspectionLive() {
     // (PDF Generation logic removed for new single-direction workflow)
 
     return (
-        <main className="relative w-full h-[100dvh] bg-black text-slate-100 font-sans overflow-hidden">
+        <main className="relative w-full h-dvh bg-black text-slate-100 font-sans overflow-hidden">
 
             {/* 🔄 意外退出后的恢复提示弹窗 (Resume Prompt) */}
             {showResumePrompt && (
                 <div
-                    className="absolute inset-0 z-[150] bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+                    className="absolute inset-0 z-150 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
                     <div
                         className="bg-slate-800/90 border border-slate-700/60 rounded-3xl p-7 max-w-sm w-full space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                         {/* Icon */}
@@ -251,12 +251,12 @@ export default function InspectionLive() {
 
 
             {showFlagFlash && (
-                <div className="absolute inset-0 z-[90] bg-red-500/40 pointer-events-none animate-pulse"/>
+                <div className="absolute inset-0 z-90 bg-red-500/40 pointer-events-none animate-pulse"/>
             )}
 
             {/* 🚩 Flag Issue: HD snapshot preview */}
             {flaggedPhoto && !showFlagFlash && (
-                <div className="absolute top-16 left-3 right-3 z-[80] pointer-events-none">
+                <div className="absolute top-16 left-3 right-3 z-80 pointer-events-none">
                     <div
                         className="relative rounded-2xl overflow-hidden border-2 border-red-500 shadow-2xl shadow-red-500/40">
                         <img
@@ -264,7 +264,7 @@ export default function InspectionLive() {
                             alt="Flagged issue"
                             className="w-full h-44 object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"/>
+                        <div className="absolute inset-0 bg-linear-to-t from-black/70 to-transparent"/>
                         <div className="absolute bottom-0 left-0 right-0 px-3 py-2 flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center shrink-0">
                                 <span className="text-sm leading-none">🚩</span>
@@ -305,7 +305,7 @@ export default function InspectionLive() {
 
                 {/* Header */}
                 <header
-                    className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 z-10 bg-gradient-to-b from-black/70 to-transparent">
+                    className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 z-10 bg-linear-to-b from-black/70 to-transparent">
                     <button
                         onClick={() => {
                             stopSession();
@@ -320,21 +320,19 @@ export default function InspectionLive() {
                         <div
                             className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : isConnecting ? 'bg-yellow-400 animate-pulse' : 'bg-slate-500'}`}/>
                         <span className="text-xs font-semibold tracking-wide">
-              {isConnecting ? t.inspection.status_connecting : (isConnected ? t.inspection.status_live : 'Ready')}
-            </span>
+                          {isConnecting ? t.inspection.status_connecting : (isConnected ? t.inspection.status_live : 'Ready')}
+                        </span>
                         {isConnected && (
                             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm border ${
                                 aiStatus === 'speaking' ? 'bg-blue-500/30 text-blue-300 border-blue-400/50' :
                                     aiStatus === 'processing' ? 'bg-amber-500/30 text-amber-300 border-amber-400/50' :
                                         'bg-emerald-500/30 text-emerald-300 border-emerald-400/50'
-                            }`}>
-                {aiStatus}
-              </span>
+                            }`}>{aiStatus}</span>
                         )}
                         {records.length > 0 && (
                             <span className="text-xs bg-white/20 backdrop-blur px-2 py-0.5 rounded-full font-bold">
-                {records.length} {language === 'zh' ? '条' : 'records'}
-              </span>
+                                {records.length} {language === 'zh' ? '条' : 'records'}
+                              </span>
                         )}
                     </div>
 
@@ -398,7 +396,7 @@ export default function InspectionLive() {
 
             {/* FOREGROUND: Logs + Controls panel */}
             <div
-                className="absolute bottom-0 left-0 right-0 h-[45vh] flex flex-col bg-gradient-to-t from-black via-black/80 to-transparent z-10 overflow-hidden pt-12">
+                className="absolute bottom-0 left-0 right-0 h-[45vh] flex flex-col bg-linear-to-t from-black via-black/80 to-transparent z-10 overflow-hidden pt-12">
 
                 {/* Logs */}
                 <div className="flex-1 px-4 pt-3 overflow-y-auto min-h-0">
@@ -407,7 +405,7 @@ export default function InspectionLive() {
                     </h3>
                     <div className="space-y-1 font-mono text-[11px] text-slate-400 flex flex-col">
                         {logs.slice(-10).map((log, i) => (
-                            <div key={i} className="break-words leading-relaxed">{log}</div>
+                            <div key={i} className="wrap-break-word leading-relaxed">{log}</div>
                         ))}
                         {logs.length === 0 && (
                             <p className="italic text-slate-600">
@@ -419,7 +417,7 @@ export default function InspectionLive() {
 
                 {/* Controls */}
                 <div
-                    className="flex-shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex justify-center items-center gap-4">
+                    className="shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex justify-center items-center gap-4">
 
                     {/* Restart */}
                     <button
@@ -473,7 +471,7 @@ export default function InspectionLive() {
             {/* Record Detail Modal */}
             {viewingRecord && (
                 <div
-                    className="absolute inset-0 z-[120] bg-black/90 backdrop-blur-sm flex flex-col pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+                    className="absolute inset-0 z-120 bg-black/90 backdrop-blur-sm flex flex-col pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
                     <header className="flex items-center justify-between p-4 border-b border-white/10 bg-black/50">
                         <h2 className="font-semibold text-white">{language === 'zh' ? '记录详情' : 'Record Details'}</h2>
                         <button onClick={() => setViewingRecord(null)}
@@ -585,8 +583,8 @@ export default function InspectionLive() {
                                                     }}
                                                     className="inline-flex items-center gap-1 text-sm font-bold px-2 py-0.5 rounded-lg"
                                                 >
-                          {cfg.icon} {viewingRecord.condition}
-                        </span>
+                                                      {cfg.icon} {viewingRecord.condition}
+                                                </span>
                                             );
                                         })()}
                                     </div>
@@ -629,7 +627,7 @@ export default function InspectionLive() {
 
             {/* Review Mode Full Screen Overlay */}
             {isReviewMode && (
-                <div className="absolute inset-0 z-[105] bg-[#0d0d1a] overflow-y-auto pb-32">
+                <div className="absolute inset-0 z-105 bg-[#0d0d1a] overflow-y-auto pb-32">
                     <header
                         className="sticky top-0 bg-black/80 backdrop-blur-xl border-b border-white/10 p-4 z-10 flex justify-between items-center">
                         <button onClick={() => setIsReviewing(false)}
@@ -680,8 +678,8 @@ export default function InspectionLive() {
                                                     }}
                                                     className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
                                                 >
-                          {cfg.icon} {rec.condition}
-                        </span>
+                                                  {cfg.icon} {rec.condition}
+                                                </span>
                                             );
                                         })()}
                                     </div>
@@ -693,10 +691,10 @@ export default function InspectionLive() {
                     </div>
 
                     <div
-                        className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black to-transparent">
+                        className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
                         <button
                             onClick={uploadToServer}
-                            className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                            className="w-full py-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-transform"
                         >
                             <CloudUpload className="w-6 h-6"/>
                             {language === 'zh' ? '确认无误，同步至云端' : 'Confirm & Sync to Cloud'}
@@ -708,7 +706,7 @@ export default function InspectionLive() {
             {/* Upload & QR Code Modal */}
             {(isUploading || uploadReportId) && (
                 <div
-                    className="absolute inset-0 z-[110] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300">
+                    className="absolute inset-0 z-110 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in-95 duration-300">
                     {isUploading ? (
                         <div className="flex flex-col items-center gap-4">
                             <span

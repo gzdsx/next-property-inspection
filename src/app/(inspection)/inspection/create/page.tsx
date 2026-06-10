@@ -233,6 +233,7 @@ export default function Home() {
         }
 
         // Save address to localStorage for PDF
+        if (selectedPropertyId) localStorage.setItem('inspection_property_id', selectedPropertyId);
         if (finalAddress) localStorage.setItem('inspection_address', finalAddress);
 
         if (!selectedPropertyId && !finalAddress && !notes && !pdfFile && imageFiles.length === 0) {
@@ -333,19 +334,6 @@ export default function Home() {
             setOfflineError(err.message || 'Error uploading video file. Please try again.');
             setOfflineStatusStep(0);
         }
-    };
-
-    const toggleLanguage = () => setLanguage(language === 'zh' ? 'en' : 'zh');
-
-    // ─────────────────────────────────────────────────────────────────────────
-    const handleLoginSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!loginUser.trim() || !loginPass.trim()) {
-            alert(language === 'zh' ? '请输入账号和密码' : 'Please enter both username and password');
-            return;
-        }
-        localStorage.setItem('mobile_logged_in', 'true');
-        setIsLoggedIn(true);
     };
 
     return (
@@ -957,7 +945,7 @@ export default function Home() {
                                         <img src={coverPhotoDataUrl} alt="Property exterior"
                                              className="w-full h-40 object-cover"/>
                                         <div
-                                            className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"/>
+                                            className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent"/>
                                         <div className="absolute bottom-2 right-2 flex gap-2">
                                             <button
                                                 onClick={openCamera}
@@ -1017,7 +1005,7 @@ export default function Home() {
                             className="group relative w-full flex items-center justify-center gap-2 py-4 px-6 bg-blue-600 text-white rounded-2xl font-bold text-lg hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-500/20 overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             <div
-                                className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent"/>
+                                className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-linear-to-r from-transparent via-white/10 to-transparent"/>
                             <UploadCloud className="w-5 h-5 shrink-0"/>
                             <span>{language === 'zh' ? '上传并开始多模态分析' : 'Upload & Start Multimodal Analysis'}</span>
                         </button>
@@ -1028,7 +1016,7 @@ export default function Home() {
             {/* Offline Video Progress Overlay */}
             {offlineStatusStep > 0 && (
                 <div
-                    className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+                    className="fixed inset-0 z-200 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
                     <div
                         className="bg-slate-800/80 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full space-y-6 flex flex-col items-center shadow-2xl animate-in fade-in zoom-in duration-200">
                         {/* Circular Progress Ring */}
@@ -1062,7 +1050,7 @@ export default function Home() {
 
                         <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
                             <div
-                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full transition-all duration-300"
+                                className="bg-linear-to-r from-blue-500 to-indigo-500 h-full transition-all duration-300"
                                 style={{width: `${offlineProgress}%`}}/>
                         </div>
                     </div>
@@ -1072,7 +1060,7 @@ export default function Home() {
             {/* Offline Analysis Success Modal */}
             {analysisFinished && (
                 <div
-                    className="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+                    className="fixed inset-0 z-200 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
                     <div
                         className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 flex flex-col items-center animate-in fade-in zoom-in duration-200 text-slate-900">
                         <div
