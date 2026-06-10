@@ -14,5 +14,17 @@
 		"login": "登录账号",
 		"loginFail": "登录失败，请检查用户名和密码",
 		"loginSuccess": "登录成功"
+	},
+	"inspection": {
+		"appTitle": "AI 房产巡检",
+		"appSubtitle": "智能识别 · 自动报告",
+		"step_title": "巡检前准备",
+		"upload_floorplan": "上传房型图 (可选)",
+		"upload_desc": "帮助 AI 更好地理解房屋空间结构",
+		"address_label": "房屋地址",
+		"address_placeholder": "请输入房屋地址 (如 54 Carmel Street)",
+		"notes_label": "重点关注事项",
+		"notes_placeholder": "例如：主卧有新增宠物抓痕",
+		"start_btn": "开始巡检"
 	}
 }

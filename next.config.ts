@@ -2,12 +2,12 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
     reactStrictMode: false,
-    allowedDevOrigins: ['shop.gzdsx.cn'],
+    allowedDevOrigins: ['inspection.noodlebox.ie'],
     images: {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'shop.gzdsx.cn',
+                hostname: 'inspection.noodlebox.ie',
             },
         ],
     },
