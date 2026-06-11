@@ -10,9 +10,10 @@ import {Spinner} from "@/components/ui/spinner";
 interface ModalPropertyProps {
     onClose: () => void;
     onSave: (property: any) => void;
+    property?: any;
 }
 
-const ModalProperty = ({onClose, onSave}: ModalPropertyProps) => {
+const ModalProperty = ({onClose, onSave, property: defaultProperty}: ModalPropertyProps) => {
     const [property, setProperty] = useState<any>({
         type: 'Detached House',
         kitchen_type: 'standard',
@@ -21,6 +22,7 @@ const ModalProperty = ({onClose, onSave}: ModalPropertyProps) => {
         ensuite_bathrooms: 1,
         living_rooms: 1,
         floors: 2,
+        ...defaultProperty
     });
     const [extractInfo, setExtractInfo] = useState<any>({
         hallway: false,

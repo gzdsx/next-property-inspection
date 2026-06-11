@@ -727,7 +727,8 @@ export function useGeminiLive() {
             const res = await apiPost('/inspection/reports', {
                 property_id: propertyId,
                 address: address,
-                video_url: videoRes.data.url,
+                video_src: videoRes.data.url,
+                video_type: 'video/webm',
                 records: recordsRef.current,
                 photo: coverPhotoBase64
             });

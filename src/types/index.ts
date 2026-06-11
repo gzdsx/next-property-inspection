@@ -6,5 +6,6 @@ export type Property = {
     bedrooms: number,
     main_bathrooms: number,
     views: number,
-    last_updated_at:string
+    last_updated_at:string;
+    bathrooms:number;
 }
