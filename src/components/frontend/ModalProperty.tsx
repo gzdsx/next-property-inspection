@@ -4,16 +4,17 @@ import {useState} from "react";
 import Autocomplete from "react-google-autocomplete";
 import CloseIcon from "@/components/frontend/CloseIcon";
 import NumberInput from "@/components/frontend/NumberInput";
-import {apiPost} from "@/lib/api";
+import {apiPost, apiPut} from "@/lib/api";
 import {Spinner} from "@/components/ui/spinner";
 
 interface ModalPropertyProps {
     onClose: () => void;
     onSave: (property: any) => void;
     property?: any;
+    editMode?: boolean;
 }
 
-const ModalProperty = ({onClose, onSave, property: defaultProperty}: ModalPropertyProps) => {
+const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: ModalPropertyProps) => {
     const [property, setProperty] = useState<any>({
         type: 'Detached House',
         kitchen_type: 'standard',
@@ -30,9 +31,10 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty}: ModalProper
         study: false,
         utility: false,
         guestWc: false,
-        storage: false
+        storage: false,
+        ...defaultProperty.includes
     });
-    const [newPropertyImage, setNewPropertyImage] = useState('');
+    const [newPropertyImage, setNewPropertyImage] = useState(defaultProperty.image || '');
     const [submiting, setSubmiting] = useState(false);
 
     const handleAddPropertySubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
@@ -43,18 +45,35 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty}: ModalProper
         //     extract_info: {...extractInfo}
         // });
 
-        setSubmiting(true);
-        apiPost(`/properties`, {
-            ...property,
-            image: newPropertyImage,
-            includes: {...extractInfo}
-        }).then(response => {
-            onSave(response.data);
-        }).catch(reason => {
+        if (editMode) {
+            setSubmiting(true);
+            apiPut(`/inspection/properties/${defaultProperty.id}`, {
+                ...property,
+                image: newPropertyImage,
+                includes: {...extractInfo}
+            }).then(response => {
+                onSave(response.data);
+                onClose();
+            }).catch(reason => {
 
-        }).finally(() => {
-            setSubmiting(false);
-        });
+            }).finally(() => {
+                setSubmiting(false);
+            });
+        } else {
+            setSubmiting(true);
+            apiPost(`/inspection/properties`, {
+                ...property,
+                image: newPropertyImage,
+                includes: {...extractInfo}
+            }).then(response => {
+                onSave(response.data);
+                onClose();
+            }).catch(reason => {
+
+            }).finally(() => {
+                setSubmiting(false);
+            });
+        }
     }
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +99,11 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty}: ModalProper
                     justifyContent: "space-between",
                     alignItems: "center"
                 }}>
-                    <h3 style={{margin: 0, fontSize: "1.2rem", fontWeight: "bold"}}>Add Property</h3>
+                    <h3 style={{
+                        margin: 0,
+                        fontSize: "1.2rem",
+                        fontWeight: "bold"
+                    }}>{editMode ? 'Edit Property' : 'Add Property'}</h3>
                     <button
                         onClick={onClose}
                         style={{

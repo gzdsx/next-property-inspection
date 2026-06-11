@@ -4,12 +4,13 @@ import {useState, useEffect, useRef} from "react";
 import {useParams, useRouter} from "next/navigation";
 import Link from "next/link";
 import {
-    ChevronLeft,
-    Pencil
+    ChevronLeft, ClipboardList, LogIn, LogOut, MoreHorizontal,
+    Pencil, Wrench
 } from "lucide-react";
 import {type Property} from "@/types";
 import {apiGet} from "@/lib/api";
 import ReportCard from "@/components/frontend/ReportCard";
+import ModalProperty from "@/components/frontend/ModalProperty";
 
 interface ReportSummary {
     id: string;
@@ -45,6 +46,7 @@ export default function PropertyDetailPage() {
     // Global layouts & theme
     const [theme, setTheme] = useState<"dark" | "light">("dark");
     const [isLoading, setIsLoading] = useState(true);
+    const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
 
     // Data States
     const [reports, setReports] = useState<any[]>([]);
@@ -66,17 +68,6 @@ export default function PropertyDetailPage() {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     };
 
-    // Confirm dialog state
-    const [confirmDialog, setConfirmDialog] = useState<{
-        open: boolean;
-        title: string;
-        message: string;
-        onConfirm: () => void
-    } | null>(null);
-    const showConfirm = (title: string, message: string, onConfirm: () => void) => {
-        setConfirmDialog({open: true, title, message, onConfirm});
-    };
-
     // Simulation Upload Modal
     const [activeDraft, setActiveDraft] = useState<InspectionItem | null>(null);
     const [videoToAssociate, setVideoToAssociate] = useState("");
@@ -93,7 +84,7 @@ export default function PropertyDetailPage() {
 
     const fetchProperty = async () => {
         try {
-            const response = await apiGet(`inspection/properties/${id}`);
+            const response = await apiGet(`/inspection/properties/${id}`);
             setProperty(response.data);
         } catch (e) {
 
@@ -105,7 +96,7 @@ export default function PropertyDetailPage() {
     const fetchInspections = async () => {
         try {
             setIsLoading(true);
-            const response = await apiGet(`inspection/reports`, {property_id: id});
+            const response = await apiGet(`/inspection/reports`, {property_id: id});
             setReports(response.data.items);
         } catch (e) {
 
@@ -194,39 +185,6 @@ export default function PropertyDetailPage() {
     const handleDeleteInspection = (e: React.MouseEvent, item: InspectionItem) => {
         e.preventDefault();
         e.stopPropagation();
-
-        showConfirm(
-            'Delete Inspection',
-            `Are you sure you want to delete this ${item.type}? This action cannot be undone.`,
-            async () => {
-                if (item.status === "Draft") {
-                    // Remove from server drafts
-                    const base = typeof window !== 'undefined' ? window.location.origin : '';
-                    const draftsRes = await fetch(`${base}/api/properties/${id}/drafts`);
-                    const drafts: InspectionItem[] = draftsRes.ok ? await draftsRes.json() : [];
-                    const updated = drafts.filter(d => d.id !== item.id);
-                    await fetch(`${base}/api/properties/${id}/drafts`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({drafts: updated})
-                    });
-                    // Also clean localStorage
-                    const draftStorageKey = `draft_inspections_${id}`;
-                    localStorage.setItem(draftStorageKey, JSON.stringify(updated));
-                    fetchData();
-                } else {
-                    // Completed, trigger DELETE server API
-                    try {
-                        const base = typeof window !== 'undefined' ? window.location.origin : '';
-                        const res = await fetch(`${base}/api/reports/${item.id}`, {method: 'DELETE'});
-                        if (!res.ok) throw new Error('Failed to delete report');
-                        fetchData();
-                    } catch (err) {
-                        showToast('Error deleting report from server', 'error');
-                    }
-                }
-            }
-        );
     };
 
     // Change the inspection type of any card (draft or completed)
@@ -598,6 +556,7 @@ export default function PropertyDetailPage() {
 
                             <div className={'flex items-center gap-3'}>
                                 <button
+                                    onClick={()=>setIsPropertyModalOpen(true)}
                                     className={'flex items-center gap-2 text-sm font-bold text-gray-500 mb-2 bg-black/3 transition-[0.2s]'}
                                 >
                                     <Pencil size={14}/>
@@ -621,23 +580,35 @@ export default function PropertyDetailPage() {
                     </header>
 
                     <section>
-                        <h2 style={{ fontSize: "1.1rem", fontWeight: "bold", marginBottom: "20px", letterSpacing: "-0.2px" }}>
+                        <h2 style={{
+                            fontSize: "1.1rem",
+                            fontWeight: "bold",
+                            marginBottom: "20px",
+                            letterSpacing: "-0.2px"
+                        }}>
                             Historical Walkthrough Visits
                         </h2>
                         {
                             isLoading ? (
-                                <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)" }}>
+                                <div style={{textAlign: "center", padding: "60px", color: "var(--text-muted)"}}>
                                     Loading property walkthroughs...
                                 </div>
-                            ):(
+                            ) : (
                                 <>
                                     {
                                         reports.length === 0 ? (
-                                            <div className="glass-panel" style={{ padding: "60px", textAlign: "center", borderStyle: "dashed" }}>
-                                                <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>No inspections registered for this property.</p>
-                                                <p style={{ color: "var(--text-dark)", fontSize: "0.75rem", marginTop: "4px" }}>Use the floating menu below to register a Routine, Move-in/out, or Maintenance check.</p>
+                                            <div className="glass-panel"
+                                                 style={{padding: "60px", textAlign: "center", borderStyle: "dashed"}}>
+                                                <p style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>No
+                                                    inspections registered for this property.</p>
+                                                <p style={{
+                                                    color: "var(--text-dark)",
+                                                    fontSize: "0.75rem",
+                                                    marginTop: "4px"
+                                                }}>Use the floating menu below to register a Routine, Move-in/out, or
+                                                    Maintenance check.</p>
                                             </div>
-                                        ):(
+                                        ) : (
                                             <div className="property-grid">
                                                 {
                                                     reports.map((report) => (
@@ -651,8 +622,52 @@ export default function PropertyDetailPage() {
                             )
                         }
                     </section>
+
+                    <div style={{
+                        position: "fixed",
+                        bottom: "32px",
+                        left: "calc(50% + var(--sidebar-width)/2)",
+                        transform: "translateX(-50%)",
+                        zIndex: 80
+                    }}>
+                        <div className="float-bar">
+                            <button className="float-btn" onClick={() => handleAddNewDraft("Routine Inspection")}>
+                                <ClipboardList size={20}/>
+                                <span>Routine</span>
+                            </button>
+                            <button className="float-btn" onClick={() => handleAddNewDraft("Move-in Inspection")}>
+                                <LogIn size={20}/>
+                                <span>Move In</span>
+                            </button>
+                            <button className="float-btn" onClick={() => handleAddNewDraft("Move-out Inspection")}>
+                                <LogOut size={20}/>
+                                <span>Move Out</span>
+                            </button>
+                            <button className="float-btn" onClick={() => handleAddNewDraft("Maintenance Check")}>
+                                <Wrench size={20}/>
+                                <span>Maintenance</span>
+                            </button>
+                            <button className="float-btn" onClick={() => handleAddNewDraft("Other")}>
+                                <MoreHorizontal size={20}/>
+                                <span>Other</span>
+                            </button>
+                        </div>
+                    </div>
                 </main>
             </div>
+
+            {
+                isPropertyModalOpen && (
+                    <ModalProperty
+                        editMode={true}
+                        onClose={() => setIsPropertyModalOpen(false)}
+                        onSave={() => {
+                            fetchProperty();
+                        }}
+                        property={property}
+                    />
+                )
+            }
         </>
     );
 }
