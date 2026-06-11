@@ -1,6 +1,7 @@
 import {useState, useRef, useCallback, useEffect} from 'react';
 import {GoogleGenAI, Modality} from '@google/genai';
 import {apiPost} from "@/lib/api";
+import {useUploadQueue} from "@/hooks/useUploadQueue";
 
 /**
  * 巡检记录的数据结构定义
@@ -41,6 +42,14 @@ export function useGeminiLive() {
     const isInitialRecordsMountRef = useRef(true);
     // 使用 Ref 保存最新的 records，以便在非 React 渲染周期（如 WebSocket 回调或上传）中能拿到最新数据
     const recordsRef = useRef<InspectionRecord[]>([]);
+    const {fileId, initQueue, pushToQueue} = useUploadQueue({
+        onSuccess: () => {
+
+        },
+        onError: (error) => {
+
+        }
+    })
 
     useEffect(() => {
         try {
@@ -349,12 +358,13 @@ export function useGeminiLive() {
                     mediaRecorder.ondataavailable = (e) => {
                         if (e.data.size > 0) {
                             recordedChunksRef.current.push(e.data);
+                            pushToQueue(new Blob([e.data], {type: 'video/webm'}));
                         }
                     };
 
                     // 极其重要：传入 timeslice 参数（1000ms），强迫浏览器每秒吐出一次录像数据。
                     // 这样即使应用意外断开，这几秒钟的数据也不会因为一直缓存在内存里而全部丢失。
-                    mediaRecorder.start(1000);
+                    mediaRecorder.start(3000);
                     inspectionStartTimeRef.current = Date.now();
                     totalPausedTimeRef.current = 0;
                     pauseStartTimeRef.current = 0;
