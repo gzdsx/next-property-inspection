@@ -34,7 +34,7 @@ const PropertyClient = () => {
 
     const fetchProperties = async () => {
         try {
-            const response = await apiGet(`/Inspection/properties`);
+            const response = await apiGet(`/inspection/properties`);
             setProperties([...response.data.items]);
         } catch (e) {
 
