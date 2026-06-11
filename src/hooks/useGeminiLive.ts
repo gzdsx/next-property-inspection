@@ -359,7 +359,7 @@ export function useGeminiLive() {
                     mediaRecorder.ondataavailable = (e) => {
                         if (e.data.size > 0) {
                             recordedChunksRef.current.push(e.data);
-                            pushToQueue(new Blob([e.data], {type: 'video/webm'}));
+                            pushToQueue(e.data);
                         }
                     };
 

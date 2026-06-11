@@ -8,7 +8,6 @@ import {SlidersHorizontal} from "lucide-react";
 
 const PropertyClient = () => {
     const [properties, setProperties] = useState<Property[]>([]);
-    // Property Filter state
     const [showPropFilters, setShowPropFilters] = useState(false);
     const [filterCountry, setFilterCountry] = useState('');
     const [filterProvince, setFilterProvince] = useState('');
@@ -19,6 +18,7 @@ const PropertyClient = () => {
     const [filterKitchen, setFilterKitchen] = useState('');
     const [filterHallway, setFilterHallway] = useState('');
     const [filterTime, setFilterTime] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const resetPropFilters = () => {
         setFilterCountry('');
@@ -34,10 +34,13 @@ const PropertyClient = () => {
 
     const fetchProperties = async () => {
         try {
+            setLoading(true);
             const response = await apiGet(`/inspection/properties`);
             setProperties([...response.data.items]);
         } catch (e) {
 
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -48,35 +51,13 @@ const PropertyClient = () => {
     return (
         <section>
             {/* Section header with filter toggle */}
-            <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "16px"
-            }}>
-                <h2 style={{
-                    fontSize: "1.1rem",
-                    fontWeight: "bold",
-                    letterSpacing: "-0.2px",
-                    margin: 0
-                }}>
+            <div className={'flex items-center justify-between mb-4'}>
+                <h2 className={'font-bold m-0'}>
                     All properties
-                    <span style={{
-                        fontSize: "0.75rem",
-                        color: "var(--text-muted)",
-                        fontWeight: "normal",
-                        marginLeft: "8px"
-                    }}>({properties.length})</span>
+                    <span className={'text-sm text-gray-500 font-normal'}>({properties.length})</span>
                 </h2>
                 <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
-                    <button onClick={resetPropFilters} style={{
-                        fontSize: "0.75rem",
-                        color: "var(--danger)",
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "4px 8px"
-                    }}>
+                    <button onClick={resetPropFilters} className={'text-sm text-red-500 font-normal cursor-pointer border-0 px-4 py-2'}>
                         Clear filters
                     </button>
                     <button
@@ -275,27 +256,6 @@ const PropertyClient = () => {
                     </div>
                 </div>
             )}
-
-            {properties.length === 0 && (
-                <div className="glass-panel" style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    borderStyle: "dashed",
-                    marginBottom: "20px"
-                }}>
-                    <p style={{color: "var(--text-muted)", margin: 0}}>No properties match the current filters.</p>
-                    <button onClick={resetPropFilters} style={{
-                        marginTop: "10px",
-                        color: "var(--primary)",
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: "0.85rem"
-                    }}>Clear filters
-                    </button>
-                </div>
-            )}
-
             <PropertyGrid properties={properties} onDelete={fetchProperties}/>
         </section>
     );

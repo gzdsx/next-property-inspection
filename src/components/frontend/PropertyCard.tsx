@@ -45,7 +45,7 @@ const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
                     />
                 </Link>
                 <div className="absolute top-3 left-3">
-                    <span className="badge badge-primary">{property.type || "HMO Property"}</span>
+                    <span className="badge text-white">{property.type || "HMO Property"}</span>
                 </div>
             </div>
             <div className="property-card-content" style={{padding: "16px"}}>

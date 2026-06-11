@@ -7,6 +7,7 @@ import ModalProperty from "@/components/frontend/ModalProperty";
 import PropertyClient from "@/components/frontend/PropertyClient";
 import Link from "next/link";
 import {Input} from "@/components/ui/input";
+import ReportClient from "@/components/frontend/ReportClient";
 
 interface ReportSummary {
     id: string;
@@ -128,13 +129,7 @@ export default function Home() {
                     </p>
                 </div>
 
-                <div style={{
-                    display: "flex",
-                    gap: "12px",
-                    width: "100%",
-                    maxWidth: "600px",
-                    justifyContent: "flex-end"
-                }}>
+                <div className={'flex gap-4 w-full max-w-150 justify-end'}>
                     {/* Search Bar */}
                     <div className="flex flex-row items-center gap-2 border border-gray-700 rounded-full px-4">
                         <input
@@ -172,8 +167,9 @@ export default function Home() {
                 </div>
             </header>
 
-            <PropertyClient key={propertyGridKey}/>
+            <ReportClient/>
 
+            <PropertyClient key={propertyGridKey}/>
 
             {/* ── ADD PROPERTY DIALOG WIZARD ────────────────────────────────────── */}
             {isAddPropertyOpen && (
