@@ -708,35 +708,32 @@ export function useGeminiLive() {
         addLog('Uploading video and records to server...');
 
         try {
-            const videoBlob = new Blob(recordedChunksRef.current, {type: 'video/webm'});
             const recordsJson = JSON.stringify(recordsRef.current, null, 2);
+            const address = localStorage.getItem('inspection_address') || '';
+            // Cover photo is stored as full data URL; strip prefix, keep raw base64 only
+            const coverPhotoRaw = localStorage.getItem('property_cover_photo') || '';
+            const coverPhotoBase64 = coverPhotoRaw.startsWith('data:')
+                ? coverPhotoRaw.split(',')[1] || ''
+                : coverPhotoRaw;
 
-            const formData = new FormData();
-            formData.append('video', videoBlob, 'video.webm');
-            formData.append('records', recordsJson);
+            const propertyId = localStorage.getItem('inspection_property_id') || '';
+            const videoRes = await apiPost(`/file/chunk/merge`, {
+                file_id: fileId,
+                save_dir: 'videos',
+                file_ext: 'webm',
+                file_type: 'video/webm'
+            });
 
-            try {
-                const address = localStorage.getItem('inspection_address') || '';
-                // Cover photo is stored as full data URL; strip prefix, keep raw base64 only
-                const coverPhotoRaw = localStorage.getItem('property_cover_photo') || '';
-                const coverPhotoBase64 = coverPhotoRaw.startsWith('data:')
-                    ? coverPhotoRaw.split(',')[1] || ''
-                    : coverPhotoRaw;
+            const res = await apiPost('/inspection/reports', {
+                property_id: propertyId,
+                address: address,
+                video_url: videoRes.data.url,
+                records: recordsJson,
+                photo: coverPhotoBase64
+            });
 
-                const propertyId = localStorage.getItem('inspection_property_id') || '';
-                formData.append('photo', coverPhotoBase64);
-                formData.append('address', address);
-                formData.append('property_id', propertyId);
-            } catch (e) {
-                console.warn('Failed to attach metadata', e);
-            }
-
-            const res = await apiPost('/inspection/reports', formData);
-
-            if (!res.ok) throw new Error('Upload failed');
-            const data = await res.json();
-            setUploadReportId(data.reportId);
-            addLog('Upload successful! Report ID: ' + data.reportId);
+            setUploadReportId(res.data.id);
+            addLog('Upload successful! Report ID: ' + res.data.id);
 
             // ✅ 上传成功后：清空 localStorage 中的巡检记录，防止下次打开 App 时
             // 错误地弹出"发现历史记录"的恢复提示框（这次已经成功上传了，不需要恢复）。
