@@ -2,7 +2,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
     reactStrictMode: false,
-    allowedDevOrigins: ['inspection.noodlebox.ie'],
+    allowedDevOrigins: ['inspection.noodlebox.ie', '8.208.121.136:39001', '8.208.121.136'],
     images: {
         remotePatterns: [
             {
