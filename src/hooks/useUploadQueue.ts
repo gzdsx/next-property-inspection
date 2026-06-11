@@ -15,12 +15,14 @@ export function useUploadQueue({onSuccess, onError}: UseUploadQueueOptions) {
     const queueRef = useRef<Blob[]>([]);
     const isProcessingRef = useRef(false);
     const fileIdRef = useRef<string>('');
+    const chunkIndexRef = useRef(0);
 
     // 初始化这轮录制的唯一文件 ID
-    const initQueue = useCallback((fileName: string) => {
+    const initQueue = useCallback(() => {
         fileIdRef.current = crypto.randomUUID();
         queueRef.current = [];
         isProcessingRef.current = false;
+        chunkIndexRef.current = 0;
         setSuccessCount(0);
         setIsUploading(false);
         return fileIdRef.current;
@@ -48,12 +50,14 @@ export function useUploadQueue({onSuccess, onError}: UseUploadQueueOptions) {
             const formData = new FormData();
             formData.append('file', chunk);
             formData.append('file_id', fileIdRef.current);
+            formData.append('chunk_index', chunkIndexRef.current.toString());
 
             try {
-                apiPost(`/file/chunk/upload`);
+                apiPost(`/file/chunk/upload`, formData);
                 setSuccessCount((prev) => prev + 1);
                 // 💡 释放锁，并递归调用自身，继续消费下一个切片
                 isProcessingRef.current = false;
+                chunkIndexRef.current++;
                 processQueue();
             } catch (error: any) {
                 console.error('切片上传失败，正在尝试重新压入队首重试...', error);

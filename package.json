@@ -8,7 +8,7 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"backup": "git add . && git commit -m 'backup' && git push --set-upstream origin main",
+		"push2github": "git add . && git commit -m 'backup' && git push --set-upstream origin main",
 		"sync": "git pull && next build"
 	},
 	"dependencies": {

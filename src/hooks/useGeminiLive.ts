@@ -345,6 +345,7 @@ export function useGeminiLive() {
 
                 // 初始化视频录像机 (MediaRecorder) 用于后台生成最终同步用的 MP4/WebM
                 try {
+                    initQueue();
                     // 适配部分 iOS/Mac 浏览器，如果不支持 video/webm 则去掉 mimeType 回退到默认
                     const options = {mimeType: 'video/webm'};
                     if (!MediaRecorder.isTypeSupported('video/webm')) {
