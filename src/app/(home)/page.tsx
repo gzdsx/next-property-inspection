@@ -158,7 +158,7 @@ export default function Home() {
                         </button>
                     </div>
 
-                    <Link href={'/inspection/create'}>
+                    <Link href={'/inspection'}>
                         <button className={'flex items-center gap-2 bg-blue-600 rounded-sm px-4 py-2'}>
                             <Plus size={18}/>
                             <span className={'text-sm text-nowrap'}>Add Inspection</span>

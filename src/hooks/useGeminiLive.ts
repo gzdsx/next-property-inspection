@@ -728,7 +728,7 @@ export function useGeminiLive() {
                 property_id: propertyId,
                 address: address,
                 video_url: videoRes.data.url,
-                records: recordsJson,
+                records: recordsRef.current,
                 photo: coverPhotoBase64
             });
 
