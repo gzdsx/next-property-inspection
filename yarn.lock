@@ -1402,7 +1402,7 @@
   dependencies:
     "@radix-ui/react-use-layout-effect" "1.1.2"
 
-"@radix-ui/react-label@2.1.9":
+"@radix-ui/react-label@2.1.9", "@radix-ui/react-label@^2.1.9":
   version "2.1.9"
   resolved "https://mirrors.tencent.com/npm/@radix-ui/react-label/-/react-label-2.1.9.tgz#6625bd39dc9f91c702bc907e1baf6cd8fa87e737"
   integrity sha512-rDoTeMbCwRVcnmo7NGT9IlPo1yXmEI+xc1URP3oeewwZEV4mdTp1dYUhYbQdo4D1q2SjKVvv4N1gNY77QAQtjA==
@@ -1642,7 +1642,7 @@
     aria-hidden "^1.2.4"
     react-remove-scroll "^2.7.2"
 
-"@radix-ui/react-separator@1.1.9":
+"@radix-ui/react-separator@1.1.9", "@radix-ui/react-separator@^1.1.9":
   version "1.1.9"
   resolved "https://mirrors.tencent.com/npm/@radix-ui/react-separator/-/react-separator-1.1.9.tgz#5c98c1633765017c54fdd32b50c252c1fe684898"
   integrity sha512-gvgW+JV/Mbjj6darztTetnmElpQEzZrXpJvfj+dOxNAxiyHEAyUvEjjl4zxblvmjmKmi3jfPoy7ZdxzCuUBJSA==
@@ -1666,7 +1666,7 @@
     "@radix-ui/react-use-previous" "1.1.2"
     "@radix-ui/react-use-size" "1.1.2"
 
-"@radix-ui/react-slot@1.2.5":
+"@radix-ui/react-slot@1.2.5", "@radix-ui/react-slot@^1.2.5":
   version "1.2.5"
   resolved "https://mirrors.tencent.com/npm/@radix-ui/react-slot/-/react-slot-1.2.5.tgz#159bf186ee6e6f07240941c2b1a228097f0c69fa"
   integrity sha512-rCMO3QsIVKv5JTY5CVbo2MvO77SpEqqYc8AvRE7OWqRDOIqAKjsp+DrmnY9uc8NPdxB5E2z47HTYGeE2+NTptg==
@@ -5220,7 +5220,7 @@ next-intl@^4.9.1:
 
 next-themes@^0.4.6:
   version "0.4.6"
-  resolved "https://mirrors.tencent.com/npm/next-themes/-/next-themes-0.4.6.tgz"
+  resolved "https://mirrors.tencent.com/npm/next-themes/-/next-themes-0.4.6.tgz#8d7e92d03b8fea6582892a50a928c9b23502e8b6"
   integrity sha512-pZvgD5L0IEvX5/9GWyHMf3m8BKiVQwsCMHfoFosXtXBMnaS0ZnIJ9ST4b4NqLVKDEm8QBxoNNGNaBv2JNF6XNA==
 
 next@16.2.3:
@@ -6184,7 +6184,7 @@ side-channel@^1.1.0:
 
 sonner@^2.0.7:
   version "2.0.7"
-  resolved "https://mirrors.tencent.com/npm/sonner/-/sonner-2.0.7.tgz"
+  resolved "https://mirrors.tencent.com/npm/sonner/-/sonner-2.0.7.tgz#810c1487a67ec3370126e0f400dfb9edddc3e4f6"
   integrity sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==
 
 source-map-js@^1.0.2, source-map-js@^1.2.1:

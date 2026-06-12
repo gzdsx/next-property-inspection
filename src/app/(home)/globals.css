@@ -294,9 +294,6 @@ body {
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
 
 /* Absolute positioning utility classes */
-.absolute {
-    position: absolute;
-}
 .top-3 {
     top: 12px;
 }
@@ -717,4 +714,21 @@ body {
     font-size: 0.875rem;
     cursor: pointer;
     font-weight: bold;
+}
+
+
+@layer base {
+    :root {
+        /* ... 其他变量 */
+
+        /* ⚡ 将浅色模式下的 focus 边框颜色改为天蓝色 (Sky 500 的 HSL 值) */
+        --ring: #2d5cf3;
+    }
+
+    .dark {
+        /* ... 其他变量 */
+
+        /* ⚡ 将暗黑模式下的 focus 边框颜色改为高亮的靛蓝色 (Indigo 500 的 HSL 值) */
+        --ring: #2d5cf3;
+    }
 }

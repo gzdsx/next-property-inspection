@@ -22,7 +22,7 @@ export const {handlers, auth} = NextAuth({
                     }
                     return null;
                 } catch (e) {
-                    console.log('e:',e);
+                    console.log('e:', e);
                     throw e;
                 }
             }
@@ -30,18 +30,22 @@ export const {handlers, auth} = NextAuth({
     ],
     callbacks: {
         // 1. 将 Token 和 User 信息存入 JWT 中
-        async jwt({token, user}) {
-            if (user) {
-                token.id = user.id;
-                token.avatar = (user as any).avatar;
-                token.accessToken = (user as any).accessToken;
+        async jwt({token, user, trigger, session}) {
+            // ⚡ 核心：拦截手动更新触发器
+            if (trigger === "update" && session) {
+                // 将前端传过来的 session 数据合入到当前的 token 中
+                return {...token, ...session};
             }
-            return token;
+            return {...token, ...user};
         },
         // 2. 将 JWT 中的信息暴露给前端 session
         async session({session, token}) {
             (session as any).accessToken = token.accessToken as string;
             (session as any).user.avatar = token.avatar as string;
+            (session as any).user.phone_number = token.phone_number as string;
+            (session as any).user.user_type = token.user_type as string;
+            (session as any).user.reference = token.reference as string;
+            (session as any).user.company_name = token.company_name as string;
             (session as any).user.id = token.id;
             return session;
         }

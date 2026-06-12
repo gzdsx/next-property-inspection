@@ -5,6 +5,8 @@ import LoginClient from "@/components/frontend/LoginClient";
 import "./globals.css";
 import {RootLayoutClient} from "@/app/(home)/RootLayoutClient";
 import {AppProvider} from "@/contexts/AppContext";
+import {Toaster} from "@/components/ui/sonner"
+import {SessionProvider} from "next-auth/react";
 
 export const metadata: Metadata = {
     title: "Video Portal Demo",
@@ -24,11 +26,16 @@ export default async function RootLayout({
         </head>
         <body suppressHydrationWarning>
         <LocaleProvider>
-            <AppProvider>
-                {
-                    session ? <RootLayoutClient>{children}</RootLayoutClient> : <LoginClient/>
-                }
-            </AppProvider>
+            {
+                session ? (
+                    <SessionProvider session={session}>
+                        <AppProvider>
+                            <RootLayoutClient>{children}</RootLayoutClient>
+                        </AppProvider>
+                    </SessionProvider>
+                ) : <LoginClient/>
+            }
+            <Toaster position={'top-center'}/>
         </LocaleProvider>
         </body>
         </html>

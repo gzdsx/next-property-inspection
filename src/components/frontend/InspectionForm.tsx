@@ -3,7 +3,7 @@
 import {useLocale, useTranslations} from "@/contexts/LocaleContext";
 import {
     ArrowRight,
-    Camera,
+    Camera, Check,
     File,
     FileText,
     HomeIcon,
@@ -53,6 +53,7 @@ const InspectionForm = () => {
     const {report, updateReport} = useReport();
     const {t} = useTranslations('inspection');
     const router = useRouter();
+    const currentUser:any = session?.user || {};
 
     const safeReport = report || {};
     const [activeTab, setActiveTab] = useState('live');
@@ -115,23 +116,21 @@ const InspectionForm = () => {
 
     // ── Offline Video Upload & Analysis ─────────────────────────────────────
     const handleOfflineUpload = async () => {
-        if (!offlineVideoFile) {
+        if (!safeReport.videoFile) {
             alert(language === 'zh' ? '请先选择视频文件' : 'Please select a video file first');
             return;
         }
 
         // 保存地址用于PDF封面生成等
-        if (address) localStorage.setItem('inspection_address', address);
-
         setOfflineError(null);
         setOfflineStatusStep(1); // 1 = 正在上传
         setOfflineProgress(12);
 
         try {
             const formData = new FormData();
-            formData.append('video', offlineVideoFile);
-            if (address) formData.append('address', address);
-            if (coverPhotoDataUrl) formData.append('coverPhoto', coverPhotoDataUrl);
+            formData.append('video', safeReport.videoFile);
+            if (safeReport.address) formData.append('address', safeReport.address);
+            if (safeReport.coverPhotoDataUrl) formData.append('coverPhoto', safeReport.coverPhotoDataUrl);
 
             // 模拟上传进度动画让体验极佳
             const interval = setInterval(() => {
@@ -240,10 +239,10 @@ const InspectionForm = () => {
                             </div>
                             <div>
                                 <p className="text-sm font-bold text-slate-800">
-                                    {session?.user?.name || (language === 'zh' ? '加载中...' : 'Loading...')}
+                                    {currentUser.name || (language === 'zh' ? '加载中...' : 'Loading...')}
                                 </p>
                                 <p className="text-xs text-slate-500 font-medium">
-                                    {session?.user.company || 'Irish PropTech Agency'}
+                                    {currentUser.company_name || 'Irish PropTech Agency'}
                                 </p>
                             </div>
                         </div>
@@ -265,19 +264,19 @@ const InspectionForm = () => {
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider mb-0.5">{language === 'zh' ? '电话' : 'Phone'}</span>
                             <span
-                                className="text-xs text-slate-700 font-semibold">{session?.user.phone_number || 'N/A'}</span>
+                                className="text-xs text-slate-700 font-semibold">{currentUser.phone_number || 'N/A'}</span>
                         </div>
                         <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50">
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider mb-0.5">{language === 'zh' ? '邮箱' : 'Email'}</span>
                             <span
-                                className="text-xs text-slate-700 font-semibold truncate block">{session?.user.email || 'N/A'}</span>
+                                className="text-xs text-slate-700 font-semibold truncate block">{currentUser.email || 'N/A'}</span>
                         </div>
                         <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50 col-span-2">
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider mb-0.5">{language === 'zh' ? '参考编号' : 'Reference No.'}</span>
                             <span
-                                className="text-xs text-slate-700 font-semibold">{session?.user.reference || 'N/A'}</span>
+                                className="text-xs text-slate-700 font-semibold">{currentUser.reference || 'N/A'}</span>
                         </div>
                     </div>
                 </div>
@@ -763,6 +762,90 @@ const InspectionForm = () => {
                     />
                 )
             }
+
+            {offlineStatusStep > 0 && (
+                <div
+                    className="fixed inset-0 z-200 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+                    <div
+                        className="bg-slate-800/80 border border-slate-700/50 rounded-3xl p-8 max-w-sm w-full space-y-6 flex flex-col items-center shadow-2xl animate-in fade-in zoom-in duration-200">
+                        {/* Circular Progress Ring */}
+                        <div className="relative w-24 h-24 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90">
+                                <circle cx="48" cy="48" r="40" className="stroke-slate-700" strokeWidth="6"
+                                        fill="transparent"/>
+                                <circle cx="48" cy="48" r="40"
+                                        className="stroke-blue-500 transition-all duration-300 ease-out" strokeWidth="6"
+                                        fill="transparent"
+                                        strokeDasharray={251.2}
+                                        strokeDashoffset={251.2 - (251.2 * offlineProgress) / 100}
+                                        strokeLinecap="round"
+                                />
+                            </svg>
+                            <span className="absolute text-lg font-extrabold">{offlineProgress}%</span>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="text-base font-bold tracking-tight">
+                                {offlineStatusStep === 1 && (language === 'zh' ? '正在上传现场录像视频...' : 'Uploading walkthrough video...')}
+                                {offlineStatusStep === 2 && (language === 'zh' ? 'Gemini 3.5 Flash 正在分析音视频...' : 'Gemini 3.5 Flash analyzing...')}
+                                {offlineStatusStep === 3 && (language === 'zh' ? '正在整理数据并同步大屏...' : 'Saving structured dashboard report...')}
+                            </h3>
+                            <p className="text-xs text-slate-400 leading-relaxed px-4">
+                                {offlineStatusStep === 1 && (language === 'zh' ? '视频正在以切片形式高速传输给 Google AI' : 'Transferring file to Google GenAI storage')}
+                                {offlineStatusStep === 2 && (language === 'zh' ? 'AI 正在听取您的解说音频，并融合画面细节' : 'Listening to speech narration & checking visual items')}
+                                {offlineStatusStep === 3 && (language === 'zh' ? '正在创建房间检查条目，完成后大屏即刻更新' : 'Saving records and meta into dashboard directory')}
+                            </p>
+                        </div>
+
+                        <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                            <div
+                                className="bg-linear-to-r from-blue-500 to-indigo-500 h-full transition-all duration-300"
+                                style={{width: `${offlineProgress}%`}}/>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {analysisFinished && (
+                <div className="fixed inset-0 z-200 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-6">
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full space-y-6 flex flex-col items-center animate-in fade-in zoom-in duration-200 text-slate-900">
+                        <div
+                            className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center shadow-md">
+                            <Check className="w-8 h-8 animate-[scaleIn_0.3s_ease-out]" strokeWidth={3}/>
+                        </div>
+                        <div className="space-y-2 text-center">
+                            <h3 className="text-2xl font-black tracking-tight text-slate-900">
+                                {language === 'zh' ? '分析并同步成功！' : 'Analysis Successful!'}
+                            </h3>
+                            <p className="text-sm text-slate-500 leading-relaxed px-2">
+                                {language === 'zh'
+                                    ? `最新代 Gemini 3.5 Flash 成功分析视频并自动抽取了 ${offlineRecordCount} 条巡检记录，已实时同步至 PC 仪表盘！`
+                                    : `Gemini 3.5 Flash successfully parsed the video and extracted ${offlineRecordCount} items. Report synced.`}
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={() => {
+                                    setAnalysisFinished(false);
+
+                                }}
+                                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-blue-500/20 active:scale-95"
+                            >
+                                {language === 'zh' ? '好的，开始下一场' : 'Great, inspect next'}
+                            </button>
+                            <a
+                                href="http://localhost:3000"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-colors text-center block text-sm active:scale-95"
+                            >
+                                🖥️ {language === 'zh' ? '前往 PC 大屏端查看' : 'Go to Dashboard'}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
