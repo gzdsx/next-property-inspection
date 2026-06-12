@@ -174,31 +174,38 @@ const InspectionForm = () => {
     };
 
     const handleStart = async () => {
-        const {property_id, address, video, notes, imageFiles} = safeReport;
-        if (!property_id && !address && !notes && !imageFiles?.length) {
+        try {
+            setIsProcessing(true);
+            const {property_id, address, video, notes, imageFiles} = safeReport;
+            if (!property_id && !address && !notes && !imageFiles?.length) {
+                router.push('/inspection/live');
+                return false;
+            }
+
+            const formData = new FormData();
+            if (property_id) formData.append('property_id', property_id);
+            if (address) formData.append('address', address);
+            if (notes) formData.append('notes', notes);
+            if (pdfFile) formData.append('pdfFile', pdfFile);
+            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
+            const res = await fetch('/api/genai/pre-process', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!res.ok) throw new Error('Failed to pre-process data');
+            const data = await res.json();
+
+            if (data.knowledgeBase) {
+                localStorage.setItem('pre_inspection_kb', data.knowledgeBase);
+            } else {
+                localStorage.removeItem('pre_inspection_kb');
+            }
             router.push('/inspection/live');
-            return false;
-        }
+        } catch (e) {
 
-        const formData = new FormData();
-        if (property_id) formData.append('property_id', property_id);
-        if (address) formData.append('address', address);
-        if (notes) formData.append('notes', notes);
-        if (pdfFile) formData.append('pdfFile', pdfFile);
-        if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
-        const res = await fetch('/api/genai/pre-process', {
-            method: 'POST',
-            body: formData,
-        });
-        if (!res.ok) throw new Error('Failed to pre-process data');
-        const data = await res.json();
-
-        if (data.knowledgeBase) {
-            localStorage.setItem('pre_inspection_kb', data.knowledgeBase);
-        } else {
-            localStorage.removeItem('pre_inspection_kb');
+        } finally {
+            setIsProcessing(false);
         }
-        router.push('/inspection/live');
     }
 
     useEffect(() => {

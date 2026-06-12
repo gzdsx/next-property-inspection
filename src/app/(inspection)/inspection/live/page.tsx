@@ -429,7 +429,7 @@ export default function InspectionLive() {
 
                     {/* Mic status */}
                     <button className={`w-12 h-12 rounded-full flex items-center justify-center relative border border-white/10 transition-all
-            ${isConnected ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-slate-500'}`}>
+                    ${isConnected ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-slate-500'}`}>
                         {isConnected && <span className="absolute inset-0 rounded-full bg-green-400/20 animate-ping"/>}
                         {isConnected ? <Mic className="w-5 h-5 z-10"/> : <MicOff className="w-5 h-5 z-10 opacity-50"/>}
                     </button>
@@ -690,8 +690,7 @@ export default function InspectionLive() {
                         ))}
                     </div>
 
-                    <div
-                        className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
+                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
                         <button
                             onClick={uploadToServer}
                             className="w-full py-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-transform"

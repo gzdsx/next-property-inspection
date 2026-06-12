@@ -2,6 +2,7 @@ import {useState, useRef, useCallback, useEffect} from 'react';
 import {GoogleGenAI, Modality} from '@google/genai';
 import {apiPost} from "@/lib/api";
 import {useUploadQueue} from "@/hooks/useUploadQueue";
+import {useReport} from "@/contexts/ReportContext";
 
 /**
  * 巡检记录的数据结构定义
@@ -49,7 +50,9 @@ export function useGeminiLive() {
         onError: (error) => {
 
         }
-    })
+    });
+    const {report, clearReport} = useReport();
+    const safeReport = report || {};
 
     useEffect(() => {
         try {
@@ -204,11 +207,10 @@ export function useGeminiLive() {
     }, [captureHDFrame]);
 
     const clearSessionData = useCallback(() => {
-        setRecords([]);
         setLogs([]);
+        setRecords([]);
         localStorage.removeItem('inspection_records');
         localStorage.removeItem('inspection_logs');
-        localStorage.removeItem('property_cover_photo');
     }, []);
 
     const stopAudioPlayback = () => {
@@ -699,8 +701,8 @@ export function useGeminiLive() {
             mediaRecorderRef.current.stop();
             mediaStreamRef.current?.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
-            // 等待 100ms 确保浏览器底层完成最后的切片封装
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 等待 500ms 确保浏览器底层完成最后的切片封装
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         if (recordedChunksRef.current.length === 0) return;
@@ -708,15 +710,6 @@ export function useGeminiLive() {
         addLog('Uploading video and records to server...');
 
         try {
-            const recordsJson = JSON.stringify(recordsRef.current, null, 2);
-            const address = localStorage.getItem('inspection_address') || '';
-            // Cover photo is stored as full data URL; strip prefix, keep raw base64 only
-            const coverPhotoRaw = localStorage.getItem('property_cover_photo') || '';
-            const coverPhotoBase64 = coverPhotoRaw.startsWith('data:')
-                ? coverPhotoRaw.split(',')[1] || ''
-                : coverPhotoRaw;
-
-            const propertyId = localStorage.getItem('inspection_property_id') || '';
             const videoRes = await apiPost(`/file/chunk/merge`, {
                 file_id: fileId,
                 save_dir: 'videos',
@@ -724,13 +717,14 @@ export function useGeminiLive() {
                 file_type: 'video/webm'
             });
 
+            const {property_id, address, coverPhotoDataUrl} = safeReport;
             const res = await apiPost('/inspection/reports', {
-                property_id: propertyId,
+                property_id: property_id,
                 address: address,
                 video_src: videoRes.data.url,
                 video_type: 'video/webm',
                 records: recordsRef.current,
-                photo: coverPhotoBase64
+                coverPhotoBase64: coverPhotoDataUrl
             });
 
             setUploadReportId(res.data.id);
@@ -740,6 +734,7 @@ export function useGeminiLive() {
             // 错误地弹出"发现历史记录"的恢复提示框（这次已经成功上传了，不需要恢复）。
             localStorage.removeItem('inspection_records');
             localStorage.removeItem('pre_inspection_kb');
+            clearReport();
         } catch (err: any) {
             console.error(err);
             addLog('Upload error: ' + err.message);
