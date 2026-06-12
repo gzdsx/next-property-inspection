@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server';
 import {GoogleGenAI} from '@google/genai';
-import {readFile} from 'fs/promises';
+import {apiGet} from "@/lib/api";
 
 export async function POST(req: Request) {
     try {
@@ -10,11 +10,11 @@ export async function POST(req: Request) {
         }
 
         const formData = await req.formData();
-        const propertyId = formData.get('propertyId') as string | null;
+        const propertyId = formData.get('property_id') as string | null;
         const address = formData.get('address') as string | null;
         const notes = formData.get('notes') as string | null;
-        const pdfFile = formData.get('pdf') as File | null;
-        const imageFiles = formData.getAll('images') as File[];
+        const pdfFile = formData.get('pdfFile') as File | null;
+        const imageFiles = formData.getAll('imageFiles') as File[];
 
         if (!propertyId && !address && !notes && !pdfFile && imageFiles.length === 0) {
             return NextResponse.json({knowledgeBase: ''});
@@ -26,87 +26,26 @@ export async function POST(req: Request) {
         // Load and process previous property record history if provided
         let historicalDataText = '';
         if (propertyId) {
-            try {
-                const uploadsDir = process.env.PORTAL_UPLOAD_DIR;
-                let dataDir = '';
-                const fs = require('fs');
-                const path = require('path');
+            const response = await apiGet(`/inspection/properties/${propertyId}`);
+            const prop = response.data;
+            historicalDataText += `=== HISTORICAL PROPERTY DETAILS ===\n`;
+            historicalDataText += `Name/Address: ${prop.name}\n`;
+            historicalDataText += `Property Type: ${prop.type || 'N/A'}\n`;
+            historicalDataText += `Rooms & Layout: ${prop.bedrooms || 0} Bedrooms, ${prop.main_bathrooms || 0} Bathrooms`;
+            if (prop.ensuite_bathrooms) historicalDataText += `, ${prop.ensuite_bathrooms} Ensuite(s)`;
+            if (prop.living_rooms) historicalDataText += `, ${prop.living_rooms} Living Room(s)`;
+            if (prop.kitchen_type) historicalDataText += `, Kitchen Type: ${prop.kitchen_type}`;
+            if (prop.storeys) historicalDataText += `, Storeys: ${prop.storeys}`;
+            if (prop.includes?.hallway !== undefined) historicalDataText += `, Hallway: ${prop.includes.hallway ? 'Yes' : 'No'}`;
+            if (prop.includes?.outdoor !== undefined) historicalDataText += `, Outdoor: ${prop.includes.outdoor ? 'Yes' : 'No'}`;
+            if (prop.includes?.study !== undefined) historicalDataText += `, Study: ${prop.includes.study ? 'Yes' : 'No'}`;
+            if (prop.includes?.utility !== undefined) historicalDataText += `, Utility Room: ${prop.includes.utility ? 'Yes' : 'No'}`;
+            if (prop.includes?.guestWc !== undefined) historicalDataText += `, Guest WC: ${prop.includes.guestWc ? 'Yes' : 'No'}`;
+            if (prop.includes?.storage !== undefined) historicalDataText += `, Storage Closets: ${prop.includes.storage ? 'Yes' : 'No'}`;
+            historicalDataText += `\n`;
 
-                if (uploadsDir) {
-                    dataDir = path.join(path.dirname(uploadsDir), 'data');
-                } else {
-                    dataDir = path.join(process.cwd(), '..', 'video-portal-demo', 'public', 'data');
-                }
-
-                const propsFilePath = path.join(dataDir, 'properties.json');
-                if (fs.existsSync(propsFilePath)) {
-                    const content = await readFile(propsFilePath, 'utf-8');
-                    const properties = JSON.parse(content);
-                    const prop = properties.find((p: any) => p.id === propertyId);
-                    if (prop) {
-                        historicalDataText += `=== HISTORICAL PROPERTY DETAILS ===\n`;
-                        historicalDataText += `Name/Address: ${prop.name}\n`;
-                        historicalDataText += `Property Type: ${prop.type || 'N/A'}\n`;
-                        if (prop.rooms) {
-                            historicalDataText += `Rooms & Layout: ${prop.rooms.bedrooms || 0} Bedrooms, ${prop.rooms.bathrooms || 0} Bathrooms`;
-                            if (prop.rooms.ensuite) historicalDataText += `, ${prop.rooms.ensuite} Ensuite(s)`;
-                            if (prop.rooms.livingRooms) historicalDataText += `, ${prop.rooms.livingRooms} Living Room(s)`;
-                            if (prop.rooms.kitchenType) historicalDataText += `, Kitchen Type: ${prop.rooms.kitchenType}`;
-                            if (prop.rooms.storeys) historicalDataText += `, Storeys: ${prop.rooms.storeys}`;
-                            historicalDataText += `\nIncluded Areas: Hallway: ${prop.rooms.hallway ? 'Yes' : 'No'}, Outdoor: ${prop.rooms.outdoor ? 'Yes' : 'No'}`;
-                            if (prop.rooms.study !== undefined) historicalDataText += `, Study: ${prop.rooms.study ? 'Yes' : 'No'}`;
-                            if (prop.rooms.utility !== undefined) historicalDataText += `, Utility Room: ${prop.rooms.utility ? 'Yes' : 'No'}`;
-                            if (prop.rooms.guestWc !== undefined) historicalDataText += `, Guest WC: ${prop.rooms.guestWc ? 'Yes' : 'No'}`;
-                            if (prop.rooms.storage !== undefined) historicalDataText += `, Storage Closets: ${prop.rooms.storage ? 'Yes' : 'No'}`;
-                            historicalDataText += `\n`;
-                        }
-
-                        // Extract completed historical visits, sort by date descending and use only the latest one
-                        const completedVisits = (prop.drafts || []).filter((d: any) => d.status === 'Completed' && d.reportId);
-                        if (completedVisits.length > 0) {
-                            const sortedVisits = [...completedVisits].sort(
-                                (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()
-                            );
-                            const latestVisit = sortedVisits[0];
-
-                            historicalDataText += `\n=== LATEST HISTORICAL WALKTHROUGH INSPECTION LOGS ===\n`;
-                            historicalDataText += `- [${latestVisit.date}] ${latestVisit.type} (Inspector: ${latestVisit.inspectorName}):\n`;
-
-                            // Read the upload report json
-                            let reportFilePath = '';
-                            if (uploadsDir) {
-                                reportFilePath = path.join(uploadsDir, `${latestVisit.reportId}.json`);
-                            } else {
-                                reportFilePath = path.join(process.cwd(), '..', 'video-portal-demo', 'public', 'uploads', `${latestVisit.reportId}.json`);
-                            }
-
-                            if (fs.existsSync(reportFilePath)) {
-                                try {
-                                    const reportContent = await readFile(reportFilePath, 'utf-8');
-                                    const records = JSON.parse(reportContent);
-                                    if (Array.isArray(records) && records.length > 0) {
-                                        records.forEach((rec: any) => {
-                                            const cond = rec.condition || 'Unknown';
-                                            const desc = rec.description || 'No notes';
-                                            historicalDataText += `  * ${rec.room_name || 'General Area'} - ${rec.item_name || 'Element'}: Condition is [${cond}] · ${desc}\n`;
-                                        });
-                                    } else {
-                                        historicalDataText += `  * No defects recorded.\n`;
-                                    }
-                                } catch (e) {
-                                    historicalDataText += `  * [Failed to parse detailed walkthrough records for this visit.]\n`;
-                                }
-                            } else {
-                                historicalDataText += `  * [Detail walkthrough records file not found.]\n`;
-                            }
-                        } else {
-                            historicalDataText += `\nNo completed historical visits found for this property.\n`;
-                        }
-                    }
-                }
-            } catch (err: any) {
-                console.error("Error loading historical property details:", err);
-            }
+            // const reportRes = await apiGet(`/inspection/reports`, {property_id: propertyId});
+            // const {total, items: reports} = response.data;
         }
 
         if (historicalDataText) {

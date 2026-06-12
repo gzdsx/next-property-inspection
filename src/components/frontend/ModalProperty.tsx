@@ -32,9 +32,9 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
         utility: false,
         guestWc: false,
         storage: false,
-        ...defaultProperty.includes
+        ...defaultProperty?.includes
     });
-    const [newPropertyImage, setNewPropertyImage] = useState(defaultProperty.image || '');
+    const [newPropertyImage, setNewPropertyImage] = useState(defaultProperty?.image || '');
     const [submiting, setSubmiting] = useState(false);
 
     const handleAddPropertySubmit = (e: React.SubmitEvent<HTMLFormElement>) => {

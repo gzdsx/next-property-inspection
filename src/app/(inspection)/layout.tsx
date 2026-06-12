@@ -17,6 +17,7 @@ import {LanguageProvider} from "@/contexts/LanguageContext";
 import {LocaleProvider} from "@/contexts/LocaleContext";
 import LoginClient from "@/components/frontend/LoginClient";
 import {SessionProvider} from "next-auth/react";
+import {ReportProvider} from "@/contexts/ReportContext";
 
 export const metadata: Metadata = {
     title: "AI Property Inspection",
@@ -39,8 +40,8 @@ export const viewport = {
 
 export const dynamic = 'force-dynamic';
 export default async function RootLayout({
-                                       children,
-                                   }: Readonly<{
+                                             children,
+                                         }: Readonly<{
     children: React.ReactNode;
 }>) {
     const session = await auth();
@@ -57,7 +58,9 @@ export default async function RootLayout({
             <LanguageProvider>
                 <SessionProvider session={session}>
                     {
-                        session ? children : <LoginClient/>
+                        session ? (
+                            <ReportProvider>{children}</ReportProvider>
+                        ) : <LoginClient/>
                     }
                 </SessionProvider>
             </LanguageProvider>
