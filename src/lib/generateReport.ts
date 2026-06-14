@@ -31,7 +31,7 @@ export interface InspectorProfile {
 export interface ReportOptions {
   address: string;                // 房产地址
   date: string;                   // 巡检执行日期 (如 "August 23rd 2016" 格式)
-  records: InspectionRecord[];   // AI + 人工审核生成的房产状况记录列表
+  records: any[];   // AI + 人工审核生成的房产状况记录列表
   inspector: InspectorProfile;    // 执行巡检的机构/人员信息
   coverPhotoBase64?: string;      // 房产外观主封面图片 (JPEG base64 格式，自动借用自房产主图)
   tenantSignatureBase64?: string; // 租客/巡检员在手写签字板上签名的 PNG base64 数据

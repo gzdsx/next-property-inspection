@@ -731,4 +731,26 @@ body {
         /* ⚡ 将暗黑模式下的 focus 边框颜色改为高亮的靛蓝色 (Indigo 500 的 HSL 值) */
         --ring: #2d5cf3;
     }
+
+    a {
+        /* 去除 iOS 点击时的灰色高亮 */
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+    }
+
+    div {
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        -ms-overflow-style: none;
+    }
+
+    div::-webkit-scrollbar {
+        display: none;
+        scrollbar-width: none;
+    }
+
+    button:not(:disabled),
+    [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
 }

@@ -3,6 +3,7 @@
 import {createContext, useContext, useState} from "react";
 import {DialogConfirmClient, DialogConfirmClientProps} from "@/components/frontend/DialogConfirmClient";
 import {Spinner} from "@/components/ui/spinner";
+import ModalInspectionVideo from "@/components/frontend/ModalInspectionVideo";
 
 
 interface AppContextProps {
@@ -13,7 +14,9 @@ interface AppContextProps {
     spinner: {
         show: (description?: string) => void;
         hide: () => void;
-    }
+    },
+    inspection: any,
+    openInspection: (inspection: any) => void;
 }
 
 const AppContext = createContext<AppContextProps | null>(null);
@@ -24,6 +27,14 @@ export function AppProvider({children}: { children: React.ReactNode }) {
 
     const [isSpinnerOpen, setIsSpinnerOpen] = useState(false);
     const [spinnerDescription, setSpinnerDescription] = useState<string | null>(null);
+
+    const [inspection, setInspection] = useState<any>(null);
+    const [isInspectionOpen, setIsInspectionOpen] = useState(false);
+
+    const openInspection = (inspection: any) => {
+        setInspection(inspection);
+        setIsInspectionOpen(true);
+    }
 
     return (
         <AppContext.Provider value={{
@@ -46,16 +57,26 @@ export function AppProvider({children}: { children: React.ReactNode }) {
                     setSpinnerDescription(null);
                     setIsSpinnerOpen(false);
                 }
-            }
+            },
+            inspection,
+            openInspection
         }}>
             {children}
+
+            <ModalInspectionVideo
+                isOpen={isInspectionOpen}
+                inspection={inspection}
+                onClose={() => setIsInspectionOpen(false)}
+            />
+
             <DialogConfirmClient {...dialogConfirmProps} open={isConfirmOpen} onCancel={() => {
                 setIsConfirmOpen(false);
                 dialogConfirmProps.onCancel?.();
             }}/>
             {
                 isSpinnerOpen && (
-                    <div className={'absolute w-full h-full left-0 top-0 bg-black/50 flex flex-col gap-y-2 items-center justify-center z-50'}>
+                    <div
+                        className={'absolute w-full h-full left-0 top-0 bg-black/50 flex flex-col gap-y-2 items-center justify-center z-50'}>
                         <Spinner className={'size-8'}/>
                         <p className={'text-white text-sm ml-2'}>{spinnerDescription}</p>
                     </div>

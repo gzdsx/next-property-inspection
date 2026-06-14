@@ -118,8 +118,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleAddPropertySubmit}
-                      style={{display: "flex", flexDirection: "column", flex: 1, overflow: "hidden"}}>
+                <form method={'post'} onSubmit={handleAddPropertySubmit}
+                      className={'flex flex-col flex-1 overflow-hidden'}>
                     <div style={{
                         padding: "24px",
                         overflowY: "auto",
@@ -128,7 +128,6 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                         gridTemplateColumns: "1fr 1fr",
                         gap: "24px"
                     }}>
-
                         {/* Left Column */}
                         <div style={{display: "flex", flexDirection: "column", gap: "16px"}}>
                             <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
@@ -157,11 +156,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                             </div>
 
                             <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
-                                <label style={{
-                                    fontSize: "0.8rem",
-                                    fontWeight: "bold",
-                                    color: "var(--text-muted)"
-                                }}>Property Type</label>
+                                <label className={'font-bold text-sm text-gray-500'}>Property Type</label>
                                 <select
                                     className="sheet-select"
                                     value={property.type}
@@ -184,11 +179,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                             </div>
 
                             <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
-                                <label style={{
-                                    fontSize: "0.8rem",
-                                    fontWeight: "bold",
-                                    color: "var(--text-muted)"
-                                }}>Property Image (Optional)</label>
+                                <label className={'font-bold text-sm text-gray-500'}>Property Image (Optional)</label>
                                 <div style={{
                                     height: "120px",
                                     border: "2px dashed var(--panel-border)",

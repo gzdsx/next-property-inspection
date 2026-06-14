@@ -1209,7 +1209,7 @@
     "@radix-ui/react-primitive" "2.1.5"
     "@radix-ui/react-use-controllable-state" "1.2.3"
 
-"@radix-ui/react-alert-dialog@1.1.16":
+"@radix-ui/react-alert-dialog@1.1.16", "@radix-ui/react-alert-dialog@^1.1.16":
   version "1.1.16"
   resolved "https://mirrors.tencent.com/npm/@radix-ui/react-alert-dialog/-/react-alert-dialog-1.1.16.tgz#dc71e092c32944c7125cbd230c0ade8e7f08afa9"
   integrity sha512-vPaIgo0mxYlvcFaM9jB2Uot9TjGXMuAPEvrc6BOLeV+I5U8s1dkIoouYaa6lmSfc5SPMo5x5djOTOTvaigdGMQ==

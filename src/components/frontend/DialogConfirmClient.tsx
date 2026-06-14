@@ -1,14 +1,17 @@
 'use client';
 
 import {
-    Dialog, DialogClose,
-    DialogContent,
-    DialogDescription, DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger
-} from "@/components/ui/dialog";
-import {Button} from "antd";
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 
 interface DialogConfirmClientProps {
     open?: boolean;
@@ -21,28 +24,21 @@ interface DialogConfirmClientProps {
 export const DialogConfirmClient = (props: DialogConfirmClientProps) => {
     const {title = 'Are you absolutely sure?', message, onConfirm, onCancel} = props;
     return (
-        <Dialog open={props.open} onOpenChange={(open) => {
-            if (!open) onCancel?.();
-        }}>
-            <DialogTrigger>Open</DialogTrigger>
-            <DialogContent className={'bg-black border-gray-500'}>
-                <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription>
-                        {message}
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button variant="outlined">Cancel</Button>
-                    </DialogClose>
-                    <Button type={'primary'} variant="solid" onClick={() => {
-                        onConfirm?.();
+        <AlertDialog open={props.open}>
+            <AlertDialogContent className={'bg-black border-gray-600'}>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>{title}</AlertDialogTitle>
+                    <AlertDialogDescription>{message}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={()=>onCancel?.()}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={()=>{
                         onCancel?.();
-                    }}>Confirm</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                        onConfirm?.();
+                    }}>Confirm</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 };
 

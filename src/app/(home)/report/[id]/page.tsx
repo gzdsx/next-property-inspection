@@ -10,7 +10,6 @@ import {
     Check, Trash2, Edit2, CheckCircle, Home, BarChart3, Settings, Play, Pause, MapPin
 } from 'lucide-react';
 import {apiGet} from "@/lib/api";
-import ReactPlayer from "react-player";
 
 interface DefectRecord {
     id: string;
@@ -392,17 +391,7 @@ export default function ReportPage() {
                         <div style={{display: "flex", gap: "10px"}}>
                             <button
                                 onClick={handleShare}
-                                className="glass-panel"
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                    padding: "10px 16px",
-                                    color: "var(--foreground)",
-                                    cursor: "pointer",
-                                    fontWeight: "bold",
-                                    fontSize: "0.85rem"
-                                }}
+                                className="glass-panel flex items-center gap-2 px-4 py-2.5 text-foreground cursor-pointer font-bold text-sm"
                             >
                                 <Share2 size={16}/>
                                 Share as link
