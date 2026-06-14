@@ -42,7 +42,7 @@ export function useReportContext() {
     return context;
 }
 
-export function useReport() {
+export function useNewReport() {
     const {report, updateReport, clearReport} = useReportContext();
     return {report, updateReport, clearReport};
 }

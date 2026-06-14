@@ -19,7 +19,7 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {apiGet} from "@/lib/api";
 import Autocomplete from "react-google-autocomplete";
 import ModalCamera from "@/components/frontend/ModalCamera";
-import {useReport} from "@/contexts/ReportContext";
+import {useNewReport} from "@/contexts/ReportContext";
 import {useRouter} from "next/navigation";
 
 const getAddressSimilarity = (addr1: string, addr2: string): number => {
@@ -50,7 +50,7 @@ const getAddressSimilarity = (addr1: string, addr2: string): number => {
 const InspectionForm = () => {
     const {locale: language} = useLocale();
     const {data: session} = useSession();
-    const {report, updateReport} = useReport();
+    const {report, updateReport} = useNewReport();
     const {t} = useTranslations('inspection');
     const router = useRouter();
     const currentUser:any = session?.user || {};

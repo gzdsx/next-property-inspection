@@ -2,7 +2,7 @@ import {useState, useRef, useCallback, useEffect} from 'react';
 import {GoogleGenAI, Modality} from '@google/genai';
 import {apiPost} from "@/lib/api";
 import {useUploadQueue} from "@/hooks/useUploadQueue";
-import {useReport} from "@/contexts/ReportContext";
+import {useNewReport} from "@/contexts/ReportContext";
 
 /**
  * 巡检记录的数据结构定义
@@ -51,7 +51,7 @@ export function useGeminiLive() {
 
         }
     });
-    const {report, clearReport} = useReport();
+    const {report, clearReport} = useNewReport();
     const safeReport = report || {};
 
     useEffect(() => {
