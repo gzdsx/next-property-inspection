@@ -10,13 +10,13 @@ export async function POST(req: Request) {
         }
 
         const formData = await req.formData();
-        const propertyId = formData.get('property_id') as string | null;
-        const address = formData.get('address') as string | null;
+        const propertyId = formData.get('propertyId') as string | null;
+        const propertyAddress = formData.get('propertyAddress') as string | null;
         const notes = formData.get('notes') as string | null;
         const pdfFile = formData.get('pdfFile') as File | null;
         const imageFiles = formData.getAll('imageFiles') as File[];
 
-        if (!propertyId && !address && !notes && !pdfFile && imageFiles.length === 0) {
+        if (!propertyId && !propertyAddress && !notes && !pdfFile && imageFiles.length === 0) {
             return NextResponse.json({knowledgeBase: ''});
         }
 
@@ -53,8 +53,8 @@ export async function POST(req: Request) {
         }
 
         // 0. Process Address
-        if (address) {
-            parts.push({text: `Property Address: ${address}\n`});
+        if (propertyAddress) {
+            parts.push({text: `Property Address: ${propertyAddress}\n`});
         }
 
         // 1. Process PDF — 直接以 base64 inlineData 传给 Gemini（原生支持 PDF 解析）
