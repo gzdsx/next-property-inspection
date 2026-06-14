@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dayjs from "dayjs";
 import {ChevronRight, Link2, Trash2} from "lucide-react";
+import {capitalize} from "@/lib/utils";
 
 interface ReportCardProps {
     report: any,
@@ -20,7 +21,7 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
             <div className="property-image-wrapper">
                 <Link href={`/report/${report.id}`}>
                     <img
-                        src={report.image}
+                        src={report.image ? report.image : report.property?.image}
                         alt="Property Cover"
                         className="property-image"
                         onError={(e) => {
@@ -32,10 +33,10 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                 <div className="absolute top-3 left-3"
                      style={{display: "flex", gap: "6px"}}>
                     <span className={`badge ${report.isSigned ? "badge-success" : "badge-warning"}`}>
-                        {report.isSigned ? "Completed" : "Draft"}
+                        {capitalize(report.status)}
                     </span>
                     <span className={`badge ${report.isSigned ? "badge-success" : "badge-danger"}`}>
-                        {report.isSigned ? "✍️ Signed" : "⏳ Unsigned"}
+                        {report.signature ? "✍️ Signed" : "⏳ Unsigned"}
                     </span>
                 </div>
                 {report.isOfflineVideo && (

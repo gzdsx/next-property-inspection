@@ -2,13 +2,16 @@
 
 import dayjs from "dayjs";
 import {capitalize} from "@/lib/utils";
-import {Play, Plus, Trash2} from "lucide-react";
-import {useConfirm, useSpinner} from "@/contexts/AppContext";
-import {apiDelete} from "@/lib/api";
+import {Pencil, Play, Plus, Trash2} from "lucide-react";
+import {useConfirm, useReport, useSpinner} from "@/contexts/AppContext";
+import {apiDelete, apiPut} from "@/lib/api";
+import {useEffect, useState} from "react";
+import Link from "next/link";
 
 interface InspectionCardProps {
     report: any;
-    onDeleted?: (inspection: any) => void;
+    onDeleted?: (report: any) => void;
+    onChange?: (report: any) => void;
 }
 
 const InspectionTypeMaps: Record<string, string> = {
@@ -19,9 +22,40 @@ const InspectionTypeMaps: Record<string, string> = {
     'other': 'Other'
 }
 
-const InspectionCard = ({report, onDeleted}: InspectionCardProps) => {
+const FloatMenu = ({value, onChange}: { value: string, onChange: (value: string) => void }) => {
+    return (
+        <div
+            className={`absolute top-0 left-0 z-50 bg-black border border-solid border-gray-600 rounded-[10px] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.55)] min-w-50`}>
+            {Object.entries(InspectionTypeMaps).map(([t, v]) => (
+                <button
+                    key={t}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onChange(t);
+                    }}
+                    style={{
+                        display: "block", width: "100%", textAlign: "left",
+                        padding: "8px 12px", border: "none", borderRadius: "7px",
+                        background: value === t ? "rgba(99,102,241,0.22)" : "transparent",
+                        color: value === t ? "var(--primary)" : "var(--foreground)",
+                        fontWeight: value === t ? "bold" : "normal",
+                        fontSize: "0.82rem", cursor: "pointer",
+                        transition: "background 0.15s"
+                    }}
+                >
+                    {v}
+                </button>
+            ))}
+        </div>
+    )
+}
+
+const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
     const spinner = useSpinner();
     const confirm = useConfirm();
+    const {openReport} = useReport();
+    const [isFloatMenuOpen, setIsFloatMenuOpen] = useState(false);
+    const [reportType, setReportType] = useState(report.type);
 
     const handleDeleteInspection = () => {
         confirm.open({
@@ -40,35 +74,74 @@ const InspectionCard = ({report, onDeleted}: InspectionCardProps) => {
         });
     }
 
+    const handleUpdateReportType = (type: string) => {
+        spinner.show();
+        apiPut(`/inspection/reports/${report.id}`, {type}).then(() => {
+            onChange?.({...report, type});
+            setReportType(type);
+        }).catch(reason => {
+            console.error(reason);
+        }).finally(() => {
+            spinner.hide();
+        });
+    }
+
+    useEffect(() => {
+        if (!isFloatMenuOpen) return; // 如果菜单本身没开，根本没必要绑定全局监听，进一步省内存
+
+        const closeMenu = () => {
+            setIsFloatMenuOpen(false);
+        };
+
+        document.addEventListener('click', closeMenu);
+        return () => {
+            document.removeEventListener('click', closeMenu);
+        };
+    }, [isFloatMenuOpen]);
+
     return (
-        <div className={'border border-gray-600 rounded-lg overflow-hidden'}>
-            <div className={`relative w-full pt-[45%]`}>
-                <img src={report.property?.image} alt={report.property?.name}
-                     className={'absolute top-0 left-0 w-full h-full object-cover'}/>
+        <div className={'border border-gray-600 rounded-lg'}>
+            <div className={`relative w-full pt-[45%] rounded-tl-lg rounded-tr-lg overflow-hidden`}>
+                <Link href={`/report/${report.id}`}>
+                    <img src={report.property?.image} alt={report.property?.name}
+                         className={'absolute top-0 left-0 w-full h-full object-cover'}/>
+                </Link>
             </div>
-            <div className={'p-3 flex flex-col gap-y-2'}>
-                <div className={'flex items-center gap-2 justify-between'}>
-                    <div className={'font-bold text-sm'}>{InspectionTypeMaps[report.type]}</div>
-                    <div className={'flex flex-nowrap gap-x-2'}>
-                        {
-                            report.status === 'completed' ? (
-                                <span className={'text-[12px] text-green-500'}>Completed</span>
-                            ) : (
-                                <span className={'text-[12px] text-red-500'}>{capitalize(report.status)}</span>
-                            )
-                        }
-                        <span
-                            className={`text-[12px] text-nowrap ${report.is_signed ? 'text-green-500' : 'text-red-500'}`}>{report.is_signed ? "✍️ Signed" : "⏳ Unsigned"}</span>
-                    </div>
+            <div className={'p-3 flex flex-col gap-y-2'} onClick={e => e.nativeEvent.stopPropagation()}>
+                <h3 onClick={(e) => {
+                    e.nativeEvent.stopPropagation();
+                    setIsFloatMenuOpen(true);
+                }}
+                    className={'font-bold text-sm flex items-center gap-x-2 cursor-pointer relative'}>
+                    {InspectionTypeMaps[reportType]}
+                    <Pencil size={12}/>
+                    {
+                        isFloatMenuOpen && (
+                            <FloatMenu value={reportType} onChange={handleUpdateReportType}/>
+                        )
+                    }
+                </h3>
+                <div className={'flex flex-nowrap gap-x-2'}>
+                    {
+                        report.status === 'completed' ? (
+                            <span className={'text-[12px] text-green-500'}>Completed</span>
+                        ) : (
+                            <span className={'text-[12px] text-red-500'}>{capitalize(report.status)}</span>
+                        )
+                    }
+                    <span
+                        className={`text-[12px] text-nowrap ${report.is_signed ? 'text-green-500' : 'text-red-500'}`}>{report.is_signed ? "✍️ Signed" : "⏳ Unsigned"}</span>
                 </div>
                 <div className={'text-[12px] text-gray-400'}>
                     <span>{dayjs(report.created_at).format('MMM DD, YYYY')}</span>
                     <span>. by </span>
                     <span>{report.user?.name}</span>
                 </div>
-                <div className={'text-[12px] text-blue-300/70'}>{report.subtext || 'No media uploaded yet - tap to continue'}</div>
+                <div
+                    className={'text-[12px] text-blue-300/70'}>{report.subtext || 'No media uploaded yet - tap to continue'}</div>
                 <div className={'pt-2 border-t border-gray-700 flex items-center justify-between'}>
                     <div
+                        onClick={() => openReport(report)}
                         className={'text-[12px] font-bold text-blue-600 flex flex-nowrap items-center cursor-pointer'}>
                         {report.status === "completed" ? (
                             <>

@@ -1,9 +1,9 @@
 'use client';
 
 import {createContext, useContext, useState} from "react";
-import {DialogConfirmClient, DialogConfirmClientProps} from "@/components/frontend/DialogConfirmClient";
 import {Spinner} from "@/components/ui/spinner";
 import ModalInspectionVideo from "@/components/frontend/ModalInspectionVideo";
+import {DialogConfirmClient, DialogConfirmClientProps} from "@/components/frontend/DialogConfirmClient";
 
 
 interface AppContextProps {
@@ -15,8 +15,8 @@ interface AppContextProps {
         show: (description?: string) => void;
         hide: () => void;
     },
-    inspection: any,
-    openInspection: (inspection: any) => void;
+    report: any,
+    openReport: (report: any) => void;
 }
 
 const AppContext = createContext<AppContextProps | null>(null);
@@ -28,12 +28,12 @@ export function AppProvider({children}: { children: React.ReactNode }) {
     const [isSpinnerOpen, setIsSpinnerOpen] = useState(false);
     const [spinnerDescription, setSpinnerDescription] = useState<string | null>(null);
 
-    const [inspection, setInspection] = useState<any>(null);
-    const [isInspectionOpen, setIsInspectionOpen] = useState(false);
+    const [report, setReport] = useState<any>(null);
+    const [isReportOpen, setIsReportOpen] = useState(false);
 
-    const openInspection = (inspection: any) => {
-        setInspection(inspection);
-        setIsInspectionOpen(true);
+    const openReport = (report: any) => {
+        setReport(report);
+        setIsReportOpen(true);
     }
 
     return (
@@ -58,15 +58,15 @@ export function AppProvider({children}: { children: React.ReactNode }) {
                     setIsSpinnerOpen(false);
                 }
             },
-            inspection,
-            openInspection
+            report,
+            openReport
         }}>
             {children}
 
             <ModalInspectionVideo
-                isOpen={isInspectionOpen}
-                inspection={inspection}
-                onClose={() => setIsInspectionOpen(false)}
+                isOpen={isReportOpen}
+                report={report}
+                onClose={() => setIsReportOpen(false)}
             />
 
             <DialogConfirmClient {...dialogConfirmProps} open={isConfirmOpen} onCancel={() => {
@@ -102,4 +102,9 @@ export function useConfirm() {
 export function useSpinner() {
     const {spinner} = useAppContext();
     return spinner;
+}
+
+export function useReport() {
+    const {report, openReport} = useAppContext();
+    return {report, openReport};
 }

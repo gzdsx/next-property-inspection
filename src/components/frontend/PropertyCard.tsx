@@ -32,7 +32,7 @@ const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
         });
     }
     return (
-        <div className="glass-panel glass-panel-hover property-card h-85">
+        <div className="glass-panel glass-panel-hover property-card">
             <div className="property-image-wrapper" style={{height: "160px"}}>
                 <Link href={`/property/${property.id}`}>
                     <img
