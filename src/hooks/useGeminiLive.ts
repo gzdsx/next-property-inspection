@@ -717,18 +717,22 @@ export function useGeminiLive() {
                 file_type: 'video/webm'
             });
 
-            const {property_id, address, coverPhotoDataUrl} = safeReport;
-            const res = await apiPost('/inspection/reports', {
-                property_id: property_id,
-                address: address,
-                video_src: videoRes.data.url,
-                video_type: 'video/webm',
-                records: recordsRef.current,
-                coverPhotoBase64: coverPhotoDataUrl
-            });
+            const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
+            const formData = new FormData();
+            formData.append('status', 'draft');
+            formData.append('video_src', videoRes.url);
+            formData.append('video_type', 'video/webm');
+            if (propertyId) formData.append('property_id', propertyId);
+            if (propertyAddress) formData.append('property_address', propertyAddress);
+            if (propertyCoverImage) formData.append('property_cover_image', propertyCoverImage);
+            if (notes) formData.append('notes', notes);
+            if (pdfFile) formData.append('pdfFile', pdfFile);
+            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
 
-            setUploadReportId(res.data.id);
-            addLog('Upload successful! Report ID: ' + res.data.id);
+            const response = await apiPost(`/inspection/inspections`, formData);
+
+            setUploadReportId(response.data.id);
+            addLog('Upload successful! Report ID: ' + response.data.id);
 
             // ✅ 上传成功后：清空 localStorage 中的巡检记录，防止下次打开 App 时
             // 错误地弹出"发现历史记录"的恢复提示框（这次已经成功上传了，不需要恢复）。

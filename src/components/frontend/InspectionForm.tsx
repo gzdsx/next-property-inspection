@@ -126,14 +126,16 @@ const InspectionForm = () => {
         try {
             setOfflineStatusStep(1);
             const videoUrl = await uploadFile(safeReport.videoFile);
-            console.log('videoUrl', safeReport.videoFile);
             setOfflineStatusStep(2);
+            updateReport({videoFile: null});
 
             const formData = new FormData();
+            formData.append('status', 'draft');
             formData.append('video_src', videoUrl);
             formData.append('video_type', safeReport.videoFile.type);
             if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('property_address', propertyAddress);
+            if (propertyCoverImage) formData.append('property_cover_image', propertyCoverImage);
             if (notes) formData.append('notes', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
             if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
@@ -155,8 +157,10 @@ const InspectionForm = () => {
             const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
 
             const formData = new FormData();
+            formData.append('status', 'draft');
             if (propertyId) formData.append('propertyId', propertyId);
             if (propertyAddress) formData.append('propertyAddress', propertyAddress);
+            if (propertyCoverImage) formData.append('propertyCoverImage', propertyCoverImage);
             if (notes) formData.append('notes', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
             if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
@@ -586,9 +590,7 @@ const InspectionForm = () => {
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    updateReport({videoFile: null});
-                                                }}
+                                                onClick={() => updateReport({videoFile: null})}
                                                 className="w-7 h-7 bg-red-100 hover:bg-red-200 text-red-500 rounded-full flex items-center justify-center shrink-0 transition-colors"
                                             >
                                                 <X className="w-3.5 h-3.5"/>

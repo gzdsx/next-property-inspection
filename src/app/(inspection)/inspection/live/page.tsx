@@ -690,7 +690,8 @@ export default function InspectionLive() {
                         ))}
                     </div>
 
-                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
+                    <div
+                        className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
                         <button
                             onClick={uploadToServer}
                             className="w-full py-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-transform"
@@ -728,7 +729,7 @@ export default function InspectionLive() {
 
                             <div className="bg-white p-4 rounded-2xl shadow-xl">
                                 <QRCodeSVG
-                                    value={`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/report/${uploadReportId}`}
+                                    value={`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/report/${uploadReportId}`}
                                     size={200}/>
                             </div>
 
@@ -736,7 +737,7 @@ export default function InspectionLive() {
                                 className="mt-2 w-full bg-black/50 rounded-xl p-3 border border-white/10 break-all text-left">
                                 <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Direct Link:</p>
                                 <p className="text-xs text-blue-300 font-mono select-all">
-                                    http://{typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000/report/{uploadReportId}
+                                    {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/report/{uploadReportId}
                                 </p>
                             </div>
 
