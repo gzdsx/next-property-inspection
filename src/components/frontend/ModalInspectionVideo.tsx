@@ -3,6 +3,8 @@
 import {useRef, useState} from "react";
 import {X} from "lucide-react";
 import {toast} from "sonner";
+import {useChunkUpload} from "@/hooks/useChunkUpload";
+import {apiPost, apiPut} from "@/lib/api";
 
 interface ModalInspectionVideoProps {
     isOpen: boolean;
@@ -18,11 +20,11 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
     const [associationMode, setAssociationMode] = useState<"real" | "demo">("real");
     const [realVideoFile, setRealVideoFile] = useState<File | null>(null);
     const [realUploadStep, setRealUploadStep] = useState(0); // 0=idle, 1=uploading, 2=analyzing, 3=finalizing
-    const [realUploadProgress, setRealUploadProgress] = useState(0);
     const [realUploadError, setRealUploadError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const realVideoInputRef = useRef<HTMLInputElement>(null);
+    const {uploadFile, uploadProgress} = useChunkUpload();
 
     // Real upload video to draft and analyze via mobile API proxied transparently
     const handleRealUploadSubmit = async (e: React.SubmitEvent) => {
@@ -30,50 +32,19 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
         if (!realVideoFile) return;
         setRealUploadError(null);
         setRealUploadStep(1); // Uploading
-        setRealUploadProgress(10);
 
         try {
+            setRealUploadStep(1);
+            const video_src = await uploadFile(realVideoFile);
+            setRealUploadStep(2);
             const formData = new FormData();
-            formData.append('video', realVideoFile);
-            formData.append('reportId', inspection.id);
-
-            // Mock progress interval during upload to make experience visually stunning
-            const interval = setInterval(() => {
-                setRealUploadProgress(prev => {
-                    if (prev >= 88) {
-                        clearInterval(interval);
-                        return 88;
-                    }
-                    return prev + Math.floor(Math.random() * 8) + 4;
-                });
-            }, 300);
+            formData.append('video_src', video_src);
+            formData.append('video_type', realVideoFile.type);
+            await apiPut(`/inspection/inspections/${inspection.id}`, formData);
 
             // Call the mobile app API proxied transparently via next.config rewrites!
-            const res = await fetch('/api/genai/analyze-video', {
-                method: 'POST',
-                body: formData,
-            });
-
-            clearInterval(interval);
-            setRealUploadProgress(95);
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Video analysis failed');
-            }
-
-            // Get the jobId from the immediate response
-            const uploadResult = await res.json();
-            const jobId = uploadResult.jobId;
-
-            setRealUploadStep(2); // Analyzing with Gemini 3.5 Flash
-            setRealUploadProgress(98);
-            // Poll the job status API until it completes or fails
-
-            setTimeout(() => {
-                setRealUploadStep(0);
-                setRealUploadProgress(1000);
-            }, 1000);
+            await apiPost('/gemini/inspections/analyze', {inspection_id: inspection.id});
+            setRealUploadStep(3); // Analyzing with Gemini 3.5 Flash
         } catch (err: any) {
             console.error(err);
             setRealUploadError(err.message || 'Error uploading video file. Please try again.');
@@ -115,7 +86,7 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
                                 <circle cx="48" cy="48" r="40" stroke="var(--primary)" strokeWidth="6"
                                         fill="transparent"
                                         strokeDasharray={251.2}
-                                        strokeDashoffset={251.2 - (251.2 * realUploadProgress) / 100}
+                                        strokeDashoffset={251.2 - (251.2 * uploadProgress) / 100}
                                         style={{transition: "stroke-dashoffset 0.3s ease", strokeLinecap: "round"}}
                                 />
                             </svg>
@@ -123,7 +94,7 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
                                 fontSize: "1.3rem",
                                 fontWeight: "900",
                                 color: "white"
-                            }}>{realUploadProgress}%</span>
+                            }}>{uploadProgress}%</span>
                         </div>
 
                         <h4 style={{margin: "0 0 8px 0", fontSize: "1.1rem", fontWeight: "bold", color: "white"}}>

@@ -139,9 +139,10 @@ const InspectionForm = () => {
             if (notes) formData.append('notes', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
             if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
+            const response = await apiPost(`/inspection/inspections`, formData);
 
-            await apiPost(`/gemini/inspections/analyze`, formData);
-            setOfflineStatusStep(0);
+            await apiPost(`/gemini/inspections/analyze`, {inspection_id: response.data.id});
+            setOfflineStatusStep(3);
             setAnalysisFinished(true);
             setShowBackgroundModal(true);
         } catch (err: any) {
