@@ -6,8 +6,8 @@ import Link from "next/link";
 import SignaturePad from "@/components/common/SignaturePad";
 import {generateInspectionReport, InspectorProfile} from "@/lib/generateReport";
 import {
-    FileSignature, ChevronLeft, Share2, Layers, Sparkles, AlertTriangle,
-    Check, Trash2, Edit2, CheckCircle, Home, BarChart3, Settings, Play, Pause, MapPin
+    FileSignature, ChevronLeft, Share2, Layers,
+    Check, Edit2, Play, MapPin
 } from 'lucide-react';
 import {apiGet} from "@/lib/api";
 
@@ -105,16 +105,17 @@ export default function ReportPage() {
         coverPhoto?: string;
         coverPhotoBase64?: string;
     } | null>(null);
-    const [report, setReport] = useState<any>({});
-    const [property, setProperty] = useState<any>({});
 
-    const fetchReport = async () => {
+    const [property, setProperty] = useState<any>({});
+    const [inspection, setInspection] = useState<any>({});
+
+    const fetchInspection = async () => {
         try {
-            const response = await apiGet(`/inspection/reports/${id}`);
-            setRecords(response.data.records);
+            const response = await apiGet(`/inspection/inspections/${id}`);
+            setRecords(response.data.records||[]);
             setVideoUrl(response.data.video_src);
             setProperty({...response.data.property});
-            setReport(response.data);
+            setInspection(response.data);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -126,8 +127,7 @@ export default function ReportPage() {
     useEffect(() => {
         if (!id) return;
 
-
-        fetchReport();
+        fetchInspection();
     }, [id]);
 
     // Video duration load & progress tick
@@ -158,7 +158,6 @@ export default function ReportPage() {
     // Calculate Color Segments dynamically from parsed records
     useEffect(() => {
         if (records.length === 0) return;
-
         // Group records by room
         const roomMap: Record<string, { start: number; end: number; good: number; fair: number; poor: number }> = {};
 
@@ -615,8 +614,7 @@ export default function ReportPage() {
                             color: "var(--text-muted)"
                         }}>
                             <span>Defects severity matches HMO code</span>
-                            {meta?.inspectorName &&
-                                <span style={{fontWeight: "bold"}}>Inspector: {meta.inspectorName}</span>}
+                            {meta?.inspectorName && <span style={{fontWeight: "bold"}}>Inspector: {meta.inspectorName}</span>}
                         </div>
 
                         <div style={{display: "flex", gap: "12px", width: "100%"}}>
