@@ -1,12 +1,11 @@
 "use client";
 
 import {useState} from "react";
+import Link from "next/link";
 import {Search, RefreshCcw, Plus} from "lucide-react";
 import ModalSettings from "@/components/frontend/ModalSettings";
 import ModalProperty from "@/components/frontend/ModalProperty";
 import PropertyClient from "@/components/frontend/PropertyClient";
-import Link from "next/link";
-import {Input} from "@/components/ui/input";
 import ReportClient from "@/components/frontend/ReportClient";
 
 interface ReportSummary {
@@ -73,21 +72,10 @@ const getAddressSimilarity = (addr1: string, addr2: string): number => {
 
 export default function Home() {
     // Navigation & UI States
-    const [activeTab, setActiveTab] = useState<"home" | "analytics">("home");
     const [theme, setTheme] = useState<"dark" | "light">("dark");
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isAddPropertyOpen, setIsAddPropertyOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [searchText, setSearchText] = useState("");
-
-    const [inspectorProfile, setInspectorProfile] = useState({
-        companyName: 'Irish PropTech Agency',
-        inspectorName: 'Steven Smith',
-        phone: '07701 068531',
-        email: 'inspector@irishproptech.ie',
-        reference: '035474'
-    });
-
 
     // Data States
     const [reports, setReports] = useState<ReportSummary[]>([]);

@@ -1,11 +1,16 @@
 "use client";
 
-import {useState, useEffect, useRef} from "react";
+import {useState, useEffect} from "react";
 import {useParams, useRouter} from "next/navigation";
 import Link from "next/link";
 import {
-    ChevronLeft, ClipboardList, LogIn, LogOut, MoreHorizontal,
-    Pencil, Wrench
+    ChevronLeft,
+    ClipboardList,
+    LogIn,
+    LogOut,
+    MoreHorizontal,
+    Pencil,
+    Wrench
 } from "lucide-react";
 import {type Property} from "@/types";
 import {apiGet, apiPost} from "@/lib/api";
@@ -13,32 +18,6 @@ import ModalProperty from "@/components/frontend/ModalProperty";
 import {useSpinner} from "@/contexts/AppContext";
 import {toast} from "sonner";
 import InspectionGrid from "@/components/frontend/InspectionGrid";
-
-interface ReportSummary {
-    id: string;
-    timestamp: number;
-    createdAt: string;
-    defectCount: number;
-    address?: string;
-    inspectorName?: string;
-    isSigned?: boolean;
-    isOfflineVideo?: boolean;
-    companyName?: string;
-    conditionStats?: { poor: number; fair: number; good: number };
-    coverPhoto?: string;
-}
-
-interface InspectionItem {
-    id: string;
-    type: "Routine Inspection" | "Move-in Inspection" | "Move-out Inspection" | "Maintenance Check" | "Other";
-    status: "Draft" | "Completed";
-    date: string;
-    inspectorName: string;
-    subtext: string;
-    reportId?: string;
-    conditionStats?: { poor: number; fair: number; good: number };
-    isSigned?: boolean;
-}
 
 export default function PropertyDetailPage() {
     const params = useParams();
@@ -52,8 +31,8 @@ export default function PropertyDetailPage() {
     const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
 
     // Data States
-    const [reports, setReports] = useState<any[]>([]);
     const [property, setProperty] = useState<Property | null>(null);
+    const [inspections, setInspections] = useState<any[]>([]);
     const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
 
     const fetchProperty = async () => {
@@ -70,8 +49,8 @@ export default function PropertyDetailPage() {
     const fetchInspections = async () => {
         try {
             setIsLoading(true);
-            const response = await apiGet(`/inspection/reports`, {property_id: id});
-            setReports(response.data.items);
+            const response = await apiGet(`/inspection/inspections`, {property_id: id});
+            setInspections(response.data.items);
         } catch (e) {
 
         } finally {
@@ -86,12 +65,12 @@ export default function PropertyDetailPage() {
 
     const handleAddInspection = (type: "routine" | "move-in" | "move-out" | "maintenance" | "other") => {
         spinner.show();
-        apiPost(`/inspection/reports`, {
+        apiPost(`/inspection/inspections`, {
             property_id: id,
             type: type,
             status: "draft"
         }).then(response => {
-            setReports(prevState => [response.data, ...prevState]);
+            setInspections(prevState => [response.data, ...prevState]);
         }).catch(reason => {
             toast.error(reason.message);
         }).finally(() => {
@@ -165,7 +144,7 @@ export default function PropertyDetailPage() {
                     ) : (
                         <>
                             {
-                                reports.length === 0 ? (
+                                inspections.length === 0 ? (
                                     <div className="glass-panel"
                                          style={{padding: "60px", textAlign: "center", borderStyle: "dashed"}}>
                                         <p style={{color: "var(--text-muted)", fontSize: "0.9rem"}}>No
@@ -178,8 +157,8 @@ export default function PropertyDetailPage() {
                                             Maintenance check.</p>
                                     </div>
                                 ) : (
-                                    <InspectionGrid data={reports} onDeleted={(report) => {
-                                        setReports(prevState => prevState.filter(i => i.id !== report.id));
+                                    <InspectionGrid data={inspections} onDeleted={(inspection) => {
+                                        setInspections(prevState => prevState.filter(i => i.id !== inspection.id));
                                     }}/>
                                 )
                             }

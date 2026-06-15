@@ -21,6 +21,7 @@ import Autocomplete from "react-google-autocomplete";
 import ModalCamera from "@/components/frontend/ModalCamera";
 import {useNewReport} from "@/contexts/ReportContext";
 import {useRouter} from "next/navigation";
+import {useChunkUpload} from "@/hooks/useChunkUpload";
 
 const getAddressSimilarity = (addr1: string, addr2: string): number => {
     const cleanAndTokenize = (str: string) => {
@@ -74,15 +75,15 @@ const InspectionForm = () => {
     const videoInputRef = useRef<HTMLInputElement>(null);
     const autocompleteRef = useRef<any>(null);
 
-    // 新增离线视频状态和 refs
-    const [offlineVideoFile, setOfflineVideoFile] = useState<File | null>(null);
-    const [offlineStatusStep, setOfflineStatusStep] = useState<number>(0); // 0=idle, 1=uploading, 2=analyzing, 3=finalizing
-    const [offlineProgress, setOfflineProgress] = useState<number>(0);
+    // 新增离线视频状态和 refs// 0=idle, 1=uploading, 2=analyzing, 3=finalizing
     const [analysisFinished, setAnalysisFinished] = useState<boolean>(false);
     const [createdReportId, setCreatedReportId] = useState<string>('');
     const [offlineError, setOfflineError] = useState<string | null>(null);
     const [offlineRecordCount, setOfflineRecordCount] = useState<number>(0);
     const [showBackgroundModal, setShowBackgroundModal] = useState<boolean>(false);
+    const [offlineStatusStep, setOfflineStatusStep] = useState(0);
+
+    const {uploadFile, uploadStatus, uploadProgress} = useChunkUpload();
 
     const currentProperty = useMemo(() => {
         return properties.find(p => p.id == safeReport.propertyId);
@@ -112,6 +113,7 @@ const InspectionForm = () => {
 
     // ── Offline Video Upload & Analysis ─────────────────────────────────────
     const handleOfflineUpload = async () => {
+        const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
         if (!safeReport.videoFile) {
             alert(language === 'zh' ? '请先选择视频文件' : 'Please select a video file first');
             return;
@@ -120,47 +122,26 @@ const InspectionForm = () => {
         // 保存地址用于PDF封面生成等
         setOfflineError(null);
         setOfflineStatusStep(1); // 1 = 正在上传
-        setOfflineProgress(12);
 
         try {
+            setOfflineStatusStep(1);
+            const videoUrl = await uploadFile(safeReport.videoFile);
+            console.log('videoUrl', safeReport.videoFile);
+            setOfflineStatusStep(2);
+
             const formData = new FormData();
-            formData.append('video', safeReport.videoFile);
-            if (safeReport.address) formData.append('address', safeReport.address);
-            if (safeReport.coverPhotoDataUrl) formData.append('coverPhoto', safeReport.coverPhotoDataUrl);
+            formData.append('video_src', videoUrl);
+            formData.append('video_type', safeReport.videoFile.type);
+            if (propertyId) formData.append('property_id', propertyId);
+            if (propertyAddress) formData.append('property_address', propertyAddress);
+            if (notes) formData.append('notes', notes);
+            if (pdfFile) formData.append('pdfFile', pdfFile);
+            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
 
-            // 模拟上传进度动画让体验极佳
-            const interval = setInterval(() => {
-                setOfflineProgress(prev => {
-                    if (prev >= 92) {
-                        clearInterval(interval);
-                        return 92;
-                    }
-                    return prev + Math.floor(Math.random() * 8) + 4;
-                });
-            }, 300);
-
-            // 发送至离线视频处理 API
-            const res = await fetch('/api/genai/analyze-video', {
-                method: 'POST',
-                body: formData,
-            });
-
-            clearInterval(interval);
-            setOfflineProgress(100);
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'Video analysis background task creation failed');
-            }
-
-            const data = await res.json();
-            setCreatedReportId(data.jobId); // 使用 jobId 作为创建报告的标识
-
-            setTimeout(() => {
-                setOfflineStatusStep(0); // 重置进度条
-                setShowBackgroundModal(true); // 弹窗提示：视频已上传成功，AI正在后台分析
-            }, 600);
-
+            await apiPost(`/gemini/inspections/analyze`, formData);
+            setOfflineStatusStep(0);
+            setAnalysisFinished(true);
+            setShowBackgroundModal(true);
         } catch (err: any) {
             console.error(err);
             setOfflineError(err.message || 'Error uploading video file. Please try again.');
@@ -668,11 +649,11 @@ const InspectionForm = () => {
                                         className="stroke-blue-500 transition-all duration-300 ease-out" strokeWidth="6"
                                         fill="transparent"
                                         strokeDasharray={251.2}
-                                        strokeDashoffset={251.2 - (251.2 * offlineProgress) / 100}
+                                        strokeDashoffset={251.2 - (251.2 * uploadProgress) / 100}
                                         strokeLinecap="round"
                                 />
                             </svg>
-                            <span className="absolute text-lg font-extrabold">{offlineProgress}%</span>
+                            <span className="absolute text-lg font-extrabold">{uploadProgress}%</span>
                         </div>
 
                         <div className="space-y-2">
@@ -691,7 +672,7 @@ const InspectionForm = () => {
                         <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
                             <div
                                 className="bg-linear-to-r from-blue-500 to-indigo-500 h-full transition-all duration-300"
-                                style={{width: `${offlineProgress}%`}}/>
+                                style={{width: `${uploadProgress}%`}}/>
                         </div>
                     </div>
                 </div>

@@ -7,10 +7,10 @@ import {toast} from "sonner";
 interface ModalInspectionVideoProps {
     isOpen: boolean;
     onClose: () => void;
-    report: any;
+    inspection: any;
 }
 
-const ModalInspectionVideo = ({report, isOpen, onClose}: ModalInspectionVideoProps) => {
+const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVideoProps) => {
     const [videoToAssociate, setVideoToAssociate] = useState("");
     const [mockDefectsCount, setMockDefectsCount] = useState(5);
 
@@ -35,7 +35,7 @@ const ModalInspectionVideo = ({report, isOpen, onClose}: ModalInspectionVideoPro
         try {
             const formData = new FormData();
             formData.append('video', realVideoFile);
-            formData.append('reportId', report.id);
+            formData.append('reportId', inspection.id);
 
             // Mock progress interval during upload to make experience visually stunning
             const interval = setInterval(() => {
@@ -81,7 +81,7 @@ const ModalInspectionVideo = ({report, isOpen, onClose}: ModalInspectionVideoPro
         }
     };
 
-    if (!isOpen || !report) return null;
+    if (!isOpen || !inspection) return null;
     return (
         <div className="modal-backdrop">
             <div className="glass-panel modal-card"
@@ -129,7 +129,7 @@ const ModalInspectionVideo = ({report, isOpen, onClose}: ModalInspectionVideoPro
                         <h4 style={{margin: "0 0 8px 0", fontSize: "1.1rem", fontWeight: "bold", color: "white"}}>
                             {realUploadStep === 1 && "Uploading video file to Gemini..."}
                             {realUploadStep === 2 && "Gemini 3.5 Flash sound & visual parsing..."}
-                            {realUploadStep === 3 && "Updating property database and report..."}
+                            {realUploadStep === 3 && "Updating property database and inspection..."}
                         </h4>
 
                         <p style={{
@@ -171,7 +171,7 @@ const ModalInspectionVideo = ({report, isOpen, onClose}: ModalInspectionVideoPro
                     <form onSubmit={handleRealUploadSubmit}
                           style={{display: "flex", flexDirection: "column", gap: "16px"}}>
                         <p style={{fontSize: "0.85rem", color: "var(--text-muted)", margin: 0, lineHeight: "1.4"}}>
-                            This is a <strong>{report.type}</strong> visit. Choose a recorded walkthrough video
+                            This is a <strong>{inspection.type}</strong> visit. Choose a recorded walkthrough video
                             file to analyze its real-world room assets and structural defects.
                         </p>
 

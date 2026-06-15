@@ -14,7 +14,7 @@ const ReportClient = () => {
     const fetchReports = async () => {
         try {
             setLoading(true);
-            const response = await apiGet(`/inspection/reports`, {limit: 5});
+            const response = await apiGet(`/inspection/inspections`, {limit: 5});
             setReports([...response.data.items]);
         } catch (e) {
 
@@ -28,7 +28,7 @@ const ReportClient = () => {
             message:'Are you sure you want to delete this report?',
             onConfirm:()=>{
                 spinner.show();
-                apiDelete(`/inspection/reports/${report.id}`).then(() => {
+                apiDelete(`/inspection/inspections/${report.id}`).then(() => {
                     fetchReports();
                 }).finally(() => {
                     spinner.hide();

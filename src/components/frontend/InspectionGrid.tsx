@@ -11,7 +11,7 @@ const InspectionGrid = ({data,onDeleted}: InspectionGridProps) => {
     return (
         <div className={'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6'}>
             {data.map((item, index) => (
-                <InspectionCard report={item} key={`inspection-card-${item.id}`} onDeleted={onDeleted} />
+                <InspectionCard inspection={item} key={`inspection-card-${item.id}`} onDeleted={onDeleted} />
             ))}
         </div>
     );

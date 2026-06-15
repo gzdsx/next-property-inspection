@@ -3,13 +3,13 @@
 import dayjs from "dayjs";
 import {capitalize} from "@/lib/utils";
 import {Pencil, Play, Plus, Trash2} from "lucide-react";
-import {useConfirm, useReport, useSpinner} from "@/contexts/AppContext";
+import {useConfirm, useInspection, useSpinner} from "@/contexts/AppContext";
 import {apiDelete, apiPut} from "@/lib/api";
 import {useEffect, useState} from "react";
 import Link from "next/link";
 
 interface InspectionCardProps {
-    report: any;
+    inspection: any;
     onDeleted?: (report: any) => void;
     onChange?: (report: any) => void;
 }
@@ -50,12 +50,12 @@ const FloatMenu = ({value, onChange}: { value: string, onChange: (value: string)
     )
 }
 
-const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
+const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) => {
     const spinner = useSpinner();
     const confirm = useConfirm();
-    const {openReport} = useReport();
+    const {openInspection} = useInspection();
     const [isFloatMenuOpen, setIsFloatMenuOpen] = useState(false);
-    const [reportType, setReportType] = useState(report.type);
+    const [reportType, setReportType] = useState(inspection.type);
 
     const handleDeleteInspection = () => {
         confirm.open({
@@ -63,8 +63,8 @@ const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
             message: "Are you sure you want to delete this inspection?",
             onConfirm: () => {
                 spinner.show();
-                apiDelete(`/inspection/reports/${report.id}`).then(() => {
-                    onDeleted?.(report);
+                apiDelete(`/inspection/inspections/${inspection.id}`).then(() => {
+                    onDeleted?.(inspection);
                 }).catch(reason => {
                     console.error(reason);
                 }).finally(() => {
@@ -76,8 +76,8 @@ const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
 
     const handleUpdateReportType = (type: string) => {
         spinner.show();
-        apiPut(`/inspection/reports/${report.id}`, {type}).then(() => {
-            onChange?.({...report, type});
+        apiPut(`/inspection/inspections/${inspection.id}`, {type}).then(() => {
+            onChange?.({...inspection, type});
             setReportType(type);
         }).catch(reason => {
             console.error(reason);
@@ -102,8 +102,8 @@ const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
     return (
         <div className={'border border-gray-600 rounded-lg'}>
             <div className={`relative w-full pt-[45%] rounded-tl-lg rounded-tr-lg overflow-hidden`}>
-                <Link href={`/report/${report.id}`}>
-                    <img src={report.property?.image} alt={report.property?.name}
+                <Link href={`/report/${inspection.id}`}>
+                    <img src={inspection.property?.image} alt={inspection.property?.name}
                          className={'absolute top-0 left-0 w-full h-full object-cover'}/>
                 </Link>
             </div>
@@ -123,27 +123,27 @@ const InspectionCard = ({report, onDeleted, onChange}: InspectionCardProps) => {
                 </h3>
                 <div className={'flex flex-nowrap gap-x-2'}>
                     {
-                        report.status === 'completed' ? (
+                        inspection.status === 'completed' ? (
                             <span className={'text-[12px] text-green-500'}>Completed</span>
                         ) : (
-                            <span className={'text-[12px] text-red-500'}>{capitalize(report.status)}</span>
+                            <span className={'text-[12px] text-red-500'}>{capitalize(inspection.status)}</span>
                         )
                     }
                     <span
-                        className={`text-[12px] text-nowrap ${report.is_signed ? 'text-green-500' : 'text-red-500'}`}>{report.is_signed ? "✍️ Signed" : "⏳ Unsigned"}</span>
+                        className={`text-[12px] text-nowrap ${inspection.is_signed ? 'text-green-500' : 'text-red-500'}`}>{inspection.is_signed ? "✍️ Signed" : "⏳ Unsigned"}</span>
                 </div>
                 <div className={'text-[12px] text-gray-400'}>
-                    <span>{dayjs(report.created_at).format('MMM DD, YYYY')}</span>
+                    <span>{dayjs(inspection.created_at).format('MMM DD, YYYY')}</span>
                     <span>. by </span>
-                    <span>{report.user?.name}</span>
+                    <span>{inspection.user?.name}</span>
                 </div>
                 <div
-                    className={'text-[12px] text-blue-300/70'}>{report.subtext || 'No media uploaded yet - tap to continue'}</div>
+                    className={'text-[12px] text-blue-300/70'}>{inspection.subtext || 'No media uploaded yet - tap to continue'}</div>
                 <div className={'pt-2 border-t border-gray-700 flex items-center justify-between'}>
                     <div
-                        onClick={() => openReport(report)}
+                        onClick={() => openInspection(inspection)}
                         className={'text-[12px] font-bold text-blue-600 flex flex-nowrap items-center cursor-pointer'}>
-                        {report.status === "completed" ? (
+                        {inspection.status === "completed" ? (
                             <>
                                 <Play size={12}/>
                                 Open Interactive Portal

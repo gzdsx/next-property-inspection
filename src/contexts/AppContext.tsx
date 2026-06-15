@@ -15,8 +15,8 @@ interface AppContextProps {
         show: (description?: string) => void;
         hide: () => void;
     },
-    report: any,
-    openReport: (report: any) => void;
+    inspection: any,
+    openInspection: (inspection: any) => void;
 }
 
 const AppContext = createContext<AppContextProps | null>(null);
@@ -28,12 +28,12 @@ export function AppProvider({children}: { children: React.ReactNode }) {
     const [isSpinnerOpen, setIsSpinnerOpen] = useState(false);
     const [spinnerDescription, setSpinnerDescription] = useState<string | null>(null);
 
-    const [report, setReport] = useState<any>(null);
-    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [inspection, setInspection] = useState<any>(null);
+    const [isInspectionOpen, setIsInspectionOpen] = useState(false);
 
-    const openReport = (report: any) => {
-        setReport(report);
-        setIsReportOpen(true);
+    const openInspection = (newInspection: any) => {
+        setInspection(newInspection);
+        setIsInspectionOpen(true);
     }
 
     return (
@@ -58,15 +58,15 @@ export function AppProvider({children}: { children: React.ReactNode }) {
                     setIsSpinnerOpen(false);
                 }
             },
-            report,
-            openReport
+            inspection,
+            openInspection
         }}>
             {children}
 
             <ModalInspectionVideo
-                isOpen={isReportOpen}
-                report={report}
-                onClose={() => setIsReportOpen(false)}
+                isOpen={isInspectionOpen}
+                inspection={inspection}
+                onClose={() => setIsInspectionOpen(false)}
             />
 
             <DialogConfirmClient {...dialogConfirmProps} open={isConfirmOpen} onCancel={() => {
@@ -104,7 +104,7 @@ export function useSpinner() {
     return spinner;
 }
 
-export function useReport() {
-    const {report, openReport} = useAppContext();
-    return {report, openReport};
+export function useInspection() {
+    const {inspection, openInspection} = useAppContext();
+    return {inspection, openInspection};
 }
