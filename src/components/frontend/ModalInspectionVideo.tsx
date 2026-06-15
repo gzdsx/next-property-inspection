@@ -45,6 +45,11 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
             // Call the mobile app API proxied transparently via next.config rewrites!
             await apiPost('/gemini/inspections/analyze', {inspection_id: inspection.id});
             setRealUploadStep(3); // Analyzing with Gemini 3.5 Flash
+
+            setTimeout(()=>{
+                setRealUploadStep(0);
+                onClose();
+            },2000);
         } catch (err: any) {
             console.error(err);
             setRealUploadError(err.message || 'Error uploading video file. Please try again.');
