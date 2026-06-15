@@ -719,9 +719,10 @@ export function useGeminiLive() {
 
             const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
             const formData = new FormData();
-            formData.append('status', 'draft');
-            formData.append('video_src', videoRes.url);
+            formData.append('status', 'completed');
+            formData.append('video_src', videoRes.data.url);
             formData.append('video_type', 'video/webm');
+            formData.append('records', JSON.stringify(recordsRef.current));
             if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('property_address', propertyAddress);
             if (propertyCoverImage) formData.append('property_cover_image', propertyCoverImage);
