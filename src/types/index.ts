@@ -51,6 +51,7 @@ export type Inspection = {
 
 export type InspectionVideo = {
     id: number;
+    title: string;
     src: string;
     mime_type: string;
     status: string;

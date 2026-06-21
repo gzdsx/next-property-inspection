@@ -7,11 +7,16 @@ import SignaturePad from '@/components/common/SignaturePad';
 import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
 import {
     FileSignature, ChevronLeft, Share2, Layers, Check, Edit2,
-    Play, MapPin, FileVideo, ChevronDown, ChevronRight, Clock,
-    AlertTriangle, Loader2,
+    Play, MapPin, FileVideo, ChevronDown, ChevronRight,
+    AlertTriangle, Loader2, Pencil, Save,
 } from 'lucide-react';
-import {apiGet} from '@/lib/api';
+import {apiGet, apiPut} from '@/lib/api';
+import {toast} from 'sonner';
 import type {Inspection, InspectionVideo, InsoectionItem} from '@/types';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import {Button} from '@/components/ui/button';
 
 const CONDITION_STYLE: Record<string, { bg: string; color: string }> = {
     'new item': {bg: 'rgba(16,185,129,0.15)', color: '#10b981'},
@@ -79,6 +84,10 @@ export default function ReportPage() {
     const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
+
+    const [editingVideo, setEditingVideo] = useState<(InspectionVideo & {items?: InsoectionItem[]}) | null>(null);
+    const [editForm, setEditForm] = useState({title: '', status: ''});
+    const [isVideoSaving, setIsVideoSaving] = useState(false);
 
     // ─── Fetch ────────────────────────────────────────────────────────────────
 
@@ -166,6 +175,33 @@ export default function ReportPage() {
             else next.add(roomName);
             return next;
         });
+    };
+
+    // ─── Video edit dialog ──────────────────────────────────────────────────────
+
+    const openVideoEdit = (video: typeof videos[number]) => {
+        setEditingVideo(video);
+        setEditForm({
+            title: video.title || '',
+            status: video.status || 'draft',
+        });
+    };
+
+    const handleVideoSave = async () => {
+        if (!editingVideo) return;
+        setIsVideoSaving(true);
+        try {
+            await apiPut(`/inspections/${id}/videos/${editingVideo.id}`, editForm);
+            setVideos(prev => prev.map(v =>
+                v.id === editingVideo.id ? {...v, ...editForm} : v
+            ));
+            setEditingVideo(null);
+            toast.success('Video info updated');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to update video');
+        } finally {
+            setIsVideoSaving(false);
+        }
     };
 
     // ─── Toast / Share ────────────────────────────────────────────────────────
@@ -376,11 +412,9 @@ export default function ReportPage() {
                                     return (
                                         <div
                                             key={video.id}
-                                            onClick={() => handleSelectVideo(video.id)}
                                             className="glass-panel"
                                             style={{
                                                 padding: '12px 16px',
-                                                cursor: 'pointer',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '12px',
@@ -389,38 +423,51 @@ export default function ReportPage() {
                                                 transition: 'var(--transition)',
                                             }}
                                         >
-                                            <div style={{
-                                                width: '36px', height: '36px', borderRadius: '10px',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                backgroundColor: isActive ? 'var(--primary-bg)' : 'rgba(255,255,255,0.05)',
-                                                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                                                flexShrink: 0,
-                                            }}>
+                                            <div
+                                                onClick={() => handleSelectVideo(video.id)}
+                                                style={{
+                                                    width: '36px', height: '36px', borderRadius: '10px',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    backgroundColor: isActive ? 'var(--primary-bg)' : 'rgba(255,255,255,0.05)',
+                                                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                                                    flexShrink: 0, cursor: 'pointer',
+                                                }}
+                                            >
                                                 {isActive
                                                     ? <Play size={16} style={{fill: 'var(--primary)'}}/>
                                                     : <FileVideo size={16}/>
                                                 }
                                             </div>
-                                            <div style={{flex: 1, minWidth: 0}}>
+                                            <div
+                                                onClick={() => handleSelectVideo(video.id)}
+                                                style={{flex: 1, minWidth: 0, cursor: 'pointer'}}
+                                            >
                                                 <p style={{
                                                     margin: 0, fontSize: '0.85rem', fontWeight: 'bold',
                                                     color: isActive ? 'var(--primary)' : 'var(--foreground)',
                                                 }} className="truncate">
-                                                    {video.src?.split('/').pop() || `Video ${idx + 1}`}
+                                                    {video.title || video.src?.split('/').pop() || `Video ${idx + 1}`}
                                                 </p>
                                                 <p style={{margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px'}}>
                                                     {video.mime_type} · {itemCount} item{itemCount !== 1 ? 's' : ''}
                                                 </p>
                                             </div>
-                                            {isActive && (
-                                                <span style={{
-                                                    fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--primary)',
-                                                    backgroundColor: 'var(--primary-bg)', padding: '3px 8px',
-                                                    borderRadius: '6px',
-                                                }}>
-                                                    NOW PLAYING
-                                                </span>
-                                            )}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openVideoEdit(video);
+                                                }}
+                                                style={{
+                                                    width: '32px', height: '32px', borderRadius: '8px',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    background: 'rgba(255,255,255,0.05)', border: 'none',
+                                                    color: 'var(--text-muted)', cursor: 'pointer', flexShrink: 0,
+                                                    transition: 'var(--transition)',
+                                                }}
+                                                title="Edit video info"
+                                            >
+                                                <Pencil size={14}/>
+                                            </button>
                                         </div>
                                     );
                                 })}
@@ -688,6 +735,57 @@ export default function ReportPage() {
                     {toastMessage}
                 </div>
             )}
+
+            {/* Video Edit Dialog */}
+            <Dialog open={!!editingVideo} onOpenChange={(open) => { if (!open) setEditingVideo(null); }}>
+                <DialogContent className="sm:max-w-sm" style={{
+                    background: 'var(--background)', border: '1px solid var(--panel-border)',
+                    overflow: 'hidden',
+                }}>
+                    <DialogHeader>
+                        <DialogTitle>Edit Video</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-2">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-semibold" style={{color: 'var(--text-muted)'}}>Title</label>
+                            <input
+                                type="text"
+                                value={editForm.title}
+                                onChange={e => setEditForm(prev => ({...prev, title: e.target.value}))}
+                                placeholder={editingVideo?.src?.split('/').pop() || 'Video title...'}
+                                className="w-full px-3 py-2 text-sm rounded-lg"
+                                style={{
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--panel-border)',
+                                    color: 'var(--foreground)', outline: 'none',
+                                }}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-semibold" style={{color: 'var(--text-muted)'}}>Status</label>
+                            <select
+                                value={editForm.status}
+                                onChange={e => setEditForm(prev => ({...prev, status: e.target.value}))}
+                                className="w-full px-3 py-2 text-sm rounded-lg"
+                                style={{
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--panel-border)',
+                                    color: 'var(--foreground)', outline: 'none',
+                                }}
+                            >
+                                <option value="draft">Draft</option>
+                                <option value="processing">Processing</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingVideo(null)}>Cancel</Button>
+                        <Button onClick={handleVideoSave} disabled={isVideoSaving}>
+                            {isVideoSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : <Save className="w-4 h-4 mr-1"/>}
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {showSignaturePad && (
                 <SignaturePad
