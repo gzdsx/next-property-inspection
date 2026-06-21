@@ -9,16 +9,17 @@ export const {handlers, auth} = NextAuth({
             id: "sanctum",
             name: "Laravel Backend",
             credentials: {
-                email: {label: "Emial", type: "text"},
+                email: {label: "Email", type: "text"},
                 password: {label: "Password", type: "password"}
             },
             async authorize(credentials) {
                 // 调用你的 Laravel 接口
                 try {
-                    const res = await apiPost("/auth/login", credentials);
+                    const response = await apiPost("/auth/login", credentials);
+                    console.log(response);
                     // 验证成功后，返回的对象会被存入 JWT
-                    if (res.data.access_token && res.data.user) {
-                        return {...res.data.user, accessToken: res.data.access_token};
+                    if (response.access_token && response.user) {
+                        return {...response.user, accessToken: response.access_token};
                     }
                     return null;
                 } catch (e) {
