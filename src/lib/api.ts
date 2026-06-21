@@ -94,7 +94,15 @@ export async function apiFetch(endpoint: string, {data, params, ...options}: Fet
         // 204 No Content 处理
         if (response.status === 204) return null;
 
-        return await response.json();
+        // 5. 检查响应头是否是 JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            // 如果不是 JSON，转为文本读取，防止直接报错
+            return await response.text();
+        }
+
+        const json = await response.json();
+        return json.data;
     } catch (error) {
         return Promise.reject(error);
     }

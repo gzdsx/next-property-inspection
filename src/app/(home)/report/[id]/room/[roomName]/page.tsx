@@ -147,7 +147,7 @@ export default function RoomDetailPage() {
 
     const fetchRoomData = async () => {
         try {
-            const response = await apiGet(`/inspection/inspections/${id}`);
+            const response = await apiGet(`/inspections/${id}`);
             const {records, video_src, user} = response.data;
             setAllRecords([...records]);
             setVideoUrl(video_src);

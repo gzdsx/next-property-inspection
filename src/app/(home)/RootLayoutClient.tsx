@@ -1,16 +1,19 @@
 'use client';
 
-import React, {useState} from "react";
-import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun} from "lucide-react";
-import {signOut} from "next-auth/react";
 import Link from "next/link";
+import React, {useState} from "react";
+import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Video} from "lucide-react";
+import {signOut} from "next-auth/react";
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [inspectorProfile, setInspectorProfile] = useState<any>({});
     const theme = 'dark';
     return (
-        <>
+        <QueryClientProvider client={queryClient}>
             <div className="dashboard-layout">
                 <aside className="sidebar">
                     <div style={{display: "flex", flexDirection: "column", alignItems: "center"}}>
@@ -21,6 +24,11 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                             <div title="Dashboard">
                                 <Link href={'/'}>
                                     <HomeIcon size={22}/>
+                                </Link>
+                            </div>
+                            <div title="Batch Video Analysis">
+                                <Link href={'/videos/upload'}>
+                                    <Video size={22}/>
                                 </Link>
                             </div>
                             <div title="Analytics">
@@ -73,11 +81,12 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                                     setIsProfileOpen(false);
                                 }}>
                                     <Settings size={16}/>
-                                    <span>Organisation Settings</span>
+                                    <span>Settings</span>
                                 </div>
-                                <div className="profile-popup-item" style={{color: "var(--danger)"}} onClick={async () => {
-                                    await signOut();
-                                }}>
+                                <div className="profile-popup-item" style={{color: "var(--danger)"}}
+                                     onClick={async () => {
+                                         await signOut();
+                                     }}>
                                     <LogOut size={16}/>
                                     <span>Log Out</span>
                                 </div>
@@ -92,6 +101,6 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                     </main>
                 </div>
             </div>
-        </>
+        </QueryClientProvider>
     );
 };

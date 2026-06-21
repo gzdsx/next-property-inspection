@@ -2494,6 +2494,18 @@
     postcss "^8.5.6"
     tailwindcss "4.2.2"
 
+"@tanstack/query-core@5.101.0":
+  version "5.101.0"
+  resolved "https://mirrors.tencent.com/npm/@tanstack/query-core/-/query-core-5.101.0.tgz#45391ce143c270b7e7a55bd1a6696918f20782d1"
+  integrity sha512-cQetA74EB+seWySv1TTKr828TnP0u39m6LykwDXIo84SNortpDkp30TMEjkqtYCNP9c40uT/iwl6MLiufEt0Ow==
+
+"@tanstack/react-query@^5.101.0":
+  version "5.101.0"
+  resolved "https://mirrors.tencent.com/npm/@tanstack/react-query/-/react-query-5.101.0.tgz#2dd56c5b96ec816d6b6ec9cee5c80ed298974733"
+  integrity sha512-rLlJXSpkqfizLWgkR5+eLeIk0MvTx/meEIR7LRjxic+qxiQP8zVjq7BqQkiCMNLQBlLfuOLqqr6KO5GtrDlmSg==
+  dependencies:
+    "@tanstack/query-core" "5.101.0"
+
 "@tiptap/core@^3.22.3":
   version "3.22.3"
   resolved "https://registry.npmmirror.com/@tiptap/core/-/core-3.22.3.tgz"

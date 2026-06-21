@@ -21,7 +21,7 @@ const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
             message: "Are you sure you want to delete this property?",
             onConfirm: () => {
                 spinner.show();
-                apiDelete(`/inspection/properties/${property.id}`).then(response => {
+                apiDelete(`/properties/${property.id}`).then(response => {
                     onDelete?.(property);
                 }).catch(reason => {
 

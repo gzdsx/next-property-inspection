@@ -1,13 +1,13 @@
 'use client';
 
 import {useEffect, useState} from "react";
-import {type Property} from "@/types";
 import {apiGet} from "@/lib/api";
 import PropertyGrid from "@/components/frontend/PropertyGrid";
 import {SlidersHorizontal} from "lucide-react";
+import {useQuery} from "@tanstack/react-query";
 
 const PropertyClient = () => {
-    const [properties, setProperties] = useState<Property[]>([]);
+    const [properties, setProperties] = useState([]);
     const [showPropFilters, setShowPropFilters] = useState(false);
     const [filterCountry, setFilterCountry] = useState('');
     const [filterProvince, setFilterProvince] = useState('');
@@ -32,21 +32,18 @@ const PropertyClient = () => {
         setFilterTime('');
     };
 
-    const fetchProperties = async () => {
-        try {
-            setLoading(true);
-            const response = await apiGet(`/inspection/properties`);
-            setProperties([...response.data.items]);
-        } catch (e) {
+    const {data: serverData, isLoading, refetch} = useQuery({
+        queryKey: ['properties', 'home'],
+        queryFn: () => apiGet(`/properties`, {limit: 5})
+    });
 
-        } finally {
-            setLoading(false);
-        }
-    }
+    console.log(properties);
 
     useEffect(() => {
-        fetchProperties();
-    }, []);
+        if (!isLoading && serverData) {
+            setProperties(serverData.items);
+        }
+    }, [isLoading, serverData]);
 
     return (
         <section>
@@ -57,7 +54,8 @@ const PropertyClient = () => {
                     <span className={'text-sm text-gray-500 font-normal'}>({properties.length})</span>
                 </h2>
                 <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
-                    <button onClick={resetPropFilters} className={'text-sm text-red-500 font-normal cursor-pointer border-0 px-4 py-2'}>
+                    <button onClick={resetPropFilters}
+                            className={'text-sm text-red-500 font-normal cursor-pointer border-0 px-4 py-2'}>
                         Clear filters
                     </button>
                     <button
@@ -256,7 +254,7 @@ const PropertyClient = () => {
                     </div>
                 </div>
             )}
-            <PropertyGrid properties={properties} onDelete={fetchProperties}/>
+            <PropertyGrid properties={properties} onDelete={() => refetch()}/>
         </section>
     );
 };

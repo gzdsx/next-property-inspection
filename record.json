@@ -1,0 +1,38 @@
+[
+	{
+		"room_name": "Guest WC",
+		"item_name": "Lighting",
+		"description": "Decorative feather pendant light fixture",
+		"condition": "Good",
+		"elapsedSeconds": 5,
+		"severity": "",
+		"id": "c55809d8-32a7-4def-b799-2d51862aaf85"
+	},
+	{
+		"room_name": "Kitchen",
+		"item_name": "Flooring",
+		"description": "White polished porcelain floor tiles",
+		"condition": "Good",
+		"elapsedSeconds": 31,
+		"severity": "",
+		"id": "332db5fb-f741-4078-bd39-fd0d426805a1"
+	},
+	{
+		"room_name": "Kitchen",
+		"item_name": "Ceiling",
+		"description": "Painted plaster ceiling with small hairline crack \/ surface blemish near the chandelier",
+		"condition": "Fair",
+		"elapsedSeconds": 111,
+		"severity": "Low",
+		"id": "ddcb176f-53f2-47f0-b44b-2399862501f8"
+	},
+	{
+		"room_name": "Kitchen",
+		"item_name": "Lighting",
+		"description": "5-arm glass and brass chandelier",
+		"condition": "Good",
+		"elapsedSeconds": 127,
+		"severity": "",
+		"id": "724db06c-616e-41fa-96d3-57760eddd7b8"
+	}
+]

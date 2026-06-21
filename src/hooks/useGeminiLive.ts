@@ -730,7 +730,7 @@ export function useGeminiLive() {
             if (pdfFile) formData.append('pdfFile', pdfFile);
             if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
 
-            const response = await apiPost(`/inspection/inspections`, formData);
+            const response = await apiPost(`/inspections`, formData);
 
             setUploadReportId(response.data.id);
             addLog('Upload successful! Report ID: ' + response.data.id);

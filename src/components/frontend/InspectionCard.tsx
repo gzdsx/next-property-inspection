@@ -1,12 +1,13 @@
 'use client';
 
 import dayjs from "dayjs";
+import Link from "next/link";
 import {capitalize} from "@/lib/utils";
+import {useEffect, useState} from "react";
 import {Pencil, Play, Plus, Trash2} from "lucide-react";
 import {useConfirm, useInspection, useSpinner} from "@/contexts/AppContext";
-import {apiDelete, apiPut} from "@/lib/api";
-import {useEffect, useState} from "react";
-import Link from "next/link";
+import {useDeleteInspectionMutation, useUpdateInspectionMutation} from "@/queries/inspection";
+import {useRouter} from "next/navigation";
 
 interface InspectionCardProps {
     inspection: any;
@@ -51,39 +52,54 @@ const FloatMenu = ({value, onChange}: { value: string, onChange: (value: string)
 }
 
 const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) => {
+    const router = useRouter();
     const spinner = useSpinner();
     const confirm = useConfirm();
     const {openInspection} = useInspection();
     const [isFloatMenuOpen, setIsFloatMenuOpen] = useState(false);
     const [reportType, setReportType] = useState(inspection.type);
 
+    const {mutate: deleteInspection} = useDeleteInspectionMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSettled: () => {
+            spinner.hide();
+        },
+        onError: (error, variables, context) => {
+            console.error(error);
+        },
+        onSuccess: () => {
+            onDeleted?.(inspection);
+        }
+    });
+
+    const {mutate: updateInspection} = useUpdateInspectionMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSettled: () => {
+            spinner.hide();
+        },
+        onError: (error, variables, context) => {
+            console.error(error);
+        },
+        onSuccess: () => {
+            onChange?.(inspection);
+        }
+    });
+
     const handleDeleteInspection = () => {
         confirm.open({
             title: "Delete Inspection",
             message: "Are you sure you want to delete this inspection?",
-            onConfirm: () => {
-                spinner.show();
-                apiDelete(`/inspection/inspections/${inspection.id}`).then(() => {
-                    onDeleted?.(inspection);
-                }).catch(reason => {
-                    console.error(reason);
-                }).finally(() => {
-                    spinner.hide();
-                });
-            }
+            onConfirm: () => deleteInspection(inspection.id)
         });
     }
 
-    const handleUpdateReportType = (type: string) => {
-        spinner.show();
-        apiPut(`/inspection/inspections/${inspection.id}`, {type}).then(() => {
-            onChange?.({...inspection, type});
-            setReportType(type);
-        }).catch(reason => {
-            console.error(reason);
-        }).finally(() => {
-            spinner.hide();
-        });
+    const handleUpdateInspection = (type: string) => {
+        setReportType(type);
+        updateInspection({id: inspection.id, data: {type}} as any);
     }
 
     useEffect(() => {
@@ -103,7 +119,7 @@ const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) 
         <div className={'border border-gray-600 rounded-lg'}>
             <div className={`relative w-full pt-[45%] rounded-tl-lg rounded-tr-lg overflow-hidden`}>
                 <Link href={`/report/${inspection.id}`}>
-                    <img src={inspection.property?.image} alt={inspection.property?.name}
+                    <img src={inspection.image} alt={inspection.property?.name}
                          className={'absolute top-0 left-0 w-full h-full object-cover'}/>
                 </Link>
             </div>
@@ -117,7 +133,7 @@ const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) 
                     <Pencil size={12}/>
                     {
                         isFloatMenuOpen && (
-                            <FloatMenu value={reportType} onChange={handleUpdateReportType}/>
+                            <FloatMenu value={reportType} onChange={handleUpdateInspection}/>
                         )
                     }
                 </h3>
@@ -141,7 +157,9 @@ const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) 
                     className={'text-[12px] text-blue-300/70'}>{inspection.subtext || 'No media uploaded yet - tap to continue'}</div>
                 <div className={'pt-2 border-t border-gray-700 flex items-center justify-between'}>
                     <div
-                        onClick={() => openInspection(inspection)}
+                        onClick={() => {
+                            router.push(`/report/${inspection.id}/edit`)
+                        }}
                         className={'text-[12px] font-bold text-blue-600 flex flex-nowrap items-center cursor-pointer'}>
                         {inspection.status === "completed" ? (
                             <>

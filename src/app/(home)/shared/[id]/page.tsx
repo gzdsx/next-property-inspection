@@ -2,8 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { 
+import {
   Layers, Sparkles, AlertTriangle, Check, Play, Eye, Home, BarChart3, MapPin
 } from 'lucide-react';
 

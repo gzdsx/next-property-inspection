@@ -40,7 +40,7 @@ const ModalInspectionVideo = ({inspection, isOpen, onClose}: ModalInspectionVide
             const formData = new FormData();
             formData.append('video_src', video_src);
             formData.append('video_type', realVideoFile.type);
-            await apiPut(`/inspection/inspections/${inspection.id}`, formData);
+            await apiPut(`/inspections/${inspection.id}`, formData);
 
             // Call the mobile app API proxied transparently via next.config rewrites!
             await apiPost('/gemini/inspections/analyze', {inspection_id: inspection.id});

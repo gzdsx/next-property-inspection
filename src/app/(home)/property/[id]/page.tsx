@@ -1,6 +1,6 @@
 "use client";
 
-import {useState, useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useParams, useRouter} from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,77 +12,52 @@ import {
     Pencil,
     Wrench
 } from "lucide-react";
-import {type Property} from "@/types";
-import {apiGet, apiPost} from "@/lib/api";
 import ModalProperty from "@/components/frontend/ModalProperty";
 import {useSpinner} from "@/contexts/AppContext";
 import {toast} from "sonner";
 import InspectionGrid from "@/components/frontend/InspectionGrid";
+import {usePropertyQuery} from "@/queries/property";
+import {useCreateInspectionMutation, useInspectionsQuery} from "@/queries/inspection";
+import {Inspection} from "@/types";
 
 export default function PropertyDetailPage() {
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
     const spinner = useSpinner();
-
-    // Global layouts & theme
-    const [theme, setTheme] = useState<"dark" | "light">("dark");
-    const [isLoading, setIsLoading] = useState(true);
     const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
-
-    // Data States
-    const [property, setProperty] = useState<Property | null>(null);
-    const [inspections, setInspections] = useState<any[]>([]);
+    const [inspections, setInspections] = useState<Inspection[]>([]);
     const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
 
-    const fetchProperty = async () => {
-        try {
-            const response = await apiGet(`/inspection/properties/${id}`);
-            setProperty(response.data);
-        } catch (e) {
+    const {data: property, refetch: refetchProperty, isFetching: isPropertyFetching} = usePropertyQuery(id);
+    const {data: inpectionData, isFetching: isInspectionFetching} = useInspectionsQuery({property_id: id});
+    const {mutate: createInspection} = useCreateInspectionMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSettled: () => {
+            spinner.hide();
+        },
+        onSuccess: (data: any) => {
+            setInspections((prevState: Inspection[]) => [...prevState, data]);
+        },
+        onError: (error) => {
+            toast.error(error.message);
+        },
+    })
 
-        } finally {
-
-        }
-    }
-
-    const fetchInspections = async () => {
-        try {
-            setIsLoading(true);
-            const response = await apiGet(`/inspection/inspections`, {property_id: id});
-            setInspections(response.data.items);
-        } catch (e) {
-
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    const fetchData = async () => {
-        await fetchProperty();
-        await fetchInspections();
-    }
 
     const handleAddInspection = (type: "routine" | "move-in" | "move-out" | "maintenance" | "other") => {
-        spinner.show();
-        apiPost(`/inspection/inspections`, {
+        createInspection({
+            type: type || 'routine',
             property_id: id,
-            type: type,
             status: "draft"
-        }).then(response => {
-            setInspections(prevState => [response.data, ...prevState]);
-        }).catch(reason => {
-            toast.error(reason.message);
-        }).finally(() => {
-            spinner.hide();
-        });
+        } as any)
     }
 
     useEffect(() => {
-        if (id) {
-            fetchData();
-        }
-    }, [id]);
+        if (!isInspectionFetching) setInspections(inpectionData.items);
+    }, [isInspectionFetching, inpectionData]);
 
     return (
         <>
@@ -137,7 +112,7 @@ export default function PropertyDetailPage() {
                     Historical Walkthrough Visits
                 </h2>
                 {
-                    isLoading ? (
+                    (isInspectionFetching || isPropertyFetching) ? (
                         <div style={{textAlign: "center", padding: "60px", color: "var(--text-muted)"}}>
                             Loading property walkthroughs...
                         </div>
@@ -203,9 +178,7 @@ export default function PropertyDetailPage() {
                     <ModalProperty
                         editMode={true}
                         onClose={() => setIsPropertyModalOpen(false)}
-                        onSave={() => {
-                            fetchProperty();
-                        }}
+                        onSave={() => refetchProperty()}
                         property={property}
                     />
                 )

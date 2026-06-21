@@ -1,11 +1,12 @@
 'use client';
 
-import {useState} from "react";
+import {useRef, useState} from "react";
 import Autocomplete from "react-google-autocomplete";
 import CloseIcon from "@/components/frontend/CloseIcon";
 import NumberInput from "@/components/frontend/NumberInput";
-import {apiPost, apiPut} from "@/lib/api";
 import {Spinner} from "@/components/ui/spinner";
+import {useCreatePropertyMutation, useUpdatePropertyMutation} from "@/queries/property";
+import {Property} from "@/types";
 
 interface ModalPropertyProps {
     onClose: () => void;
@@ -15,64 +16,69 @@ interface ModalPropertyProps {
 }
 
 const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: ModalPropertyProps) => {
-    const [property, setProperty] = useState<any>({
+    const [property, setProperty] = useState<Property>({
         type: 'Detached House',
         kitchen_type: 'standard',
         bedrooms: 1,
         main_bathrooms: 1,
         ensuite_bathrooms: 1,
         living_rooms: 1,
-        floors: 2,
+        storeys: 2,
         ...defaultProperty
     });
-    const [extractInfo, setExtractInfo] = useState<any>({
-        hallway: false,
-        outdoor: false,
-        study: false,
-        utility: false,
-        guestWc: false,
-        storage: false,
-        ...defaultProperty?.includes
-    });
+    const [rooms, setRooms] = useState<string[]>(Array.isArray(defaultProperty?.rooms) ? defaultProperty?.rooms : []);
     const [newPropertyImage, setNewPropertyImage] = useState(defaultProperty?.image || '');
     const [submiting, setSubmiting] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+
+    const {mutate: createProperty} = useCreatePropertyMutation({
+        onMutate: () => {
+            setSubmiting(true);
+        },
+        onSettled: () => {
+            setSubmiting(false);
+        },
+        onSuccess: (data: any) => {
+            onSave(data);
+            onClose();
+        },
+        onError: (error) => {
+            console.log(error);
+        }
+    });
+
+    const {mutate: updateProperty} = useUpdatePropertyMutation({
+        onMutate: () => {
+            setSubmiting(true);
+        },
+        onSettled: () => {
+            setSubmiting(false);
+        },
+        onSuccess: (data: any) => {
+            onSave(data);
+            onClose();
+        },
+        onError: (error) => {
+
+        }
+    });
 
     const handleAddPropertySubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // console.log({
-        //     ...property,
-        //     image: newPropertyImage,
-        //     extract_info: {...extractInfo}
-        // });
-
         if (editMode) {
-            setSubmiting(true);
-            apiPut(`/inspection/properties/${defaultProperty.id}`, {
-                ...property,
-                image: newPropertyImage,
-                includes: {...extractInfo}
-            }).then(response => {
-                onSave(response.data);
-                onClose();
-            }).catch(reason => {
-
-            }).finally(() => {
-                setSubmiting(false);
-            });
+            updateProperty({
+                id: defaultProperty.id, data: {
+                    ...property,
+                    image: newPropertyImage,
+                    rooms
+                }
+            } as any);
         } else {
-            setSubmiting(true);
-            apiPost(`/inspection/properties`, {
+            createProperty({
                 ...property,
                 image: newPropertyImage,
-                includes: {...extractInfo}
-            }).then(response => {
-                onSave(response.data);
-                onClose();
-            }).catch(reason => {
-
-            }).finally(() => {
-                setSubmiting(false);
-            });
+                rooms
+            } as any);
         }
     }
 
@@ -86,6 +92,14 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
             reader.readAsDataURL(file);
         }
     };
+
+    const handleSelectedRoom = (room: string) => {
+        if (rooms.includes(room)) {
+            setRooms(prevState => prevState.filter(r => r !== room));
+        } else {
+            setRooms(prevState => [...new Set([...prevState, room])]);
+        }
+    }
 
     return (
         <div className="modal-backdrop" onClick={onClose}>
@@ -159,7 +173,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                 <label className={'font-bold text-sm text-gray-500'}>Property Type</label>
                                 <select
                                     className="sheet-select"
-                                    value={property.type}
+                                    value={property.type || 'Detached House'}
                                     onChange={(e) => {
                                         setProperty((prev: any) => ({...prev, type: e.target.value}));
                                     }}
@@ -180,7 +194,14 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
 
                             <div style={{display: "flex", flexDirection: "column", gap: "6px"}}>
                                 <label className={'font-bold text-sm text-gray-500'}>Property Image (Optional)</label>
-                                <div style={{
+                                <input
+                                    ref={imageInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className={'hidden'}
+                                />
+                                <div onClick={()=>imageInputRef.current?.click()} style={{
                                     height: "120px",
                                     border: "2px dashed var(--panel-border)",
                                     borderRadius: "12px",
@@ -190,7 +211,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     position: "relative",
                                     overflow: "hidden",
                                     backgroundColor: "rgba(255,255,255,0.01)"
-                                }}>
+                                }} className={'cursor-pointer'}>
                                     {newPropertyImage ? (
                                         <img src={newPropertyImage}
                                              style={{width: "100%", height: "100%", objectFit: "cover"}}/>
@@ -204,12 +225,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                             gap: "6px"
                                         }}>
                                             <span style={{fontSize: "0.75rem", color: "var(--text-muted)"}}>Choose a cover image</span>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handleImageUpload}
-                                                style={{fontSize: "0.7rem", width: "180px"}}
-                                            />
+
                                         </div>
                                     )}
                                 </div>
@@ -340,8 +356,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                         fontWeight: "bold",
                                         color: "var(--text-muted)"
                                     }}>Floors / Storeys</label>
-                                    <NumberInput value={property.floors || 1} onChange={(value) => {
-                                        setProperty((prev: any) => ({...prev, floors: value}));
+                                    <NumberInput value={property.storeys || 1} onChange={(value) => {
+                                        setProperty((prev: any) => ({...prev, storeys: value}));
                                     }}/>
                                 </div>
                             </div>
@@ -368,10 +384,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.hallway}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, hallway: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('hallway')}
+                                        onChange={(e) => handleSelectedRoom('hallway')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>
@@ -382,7 +396,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     alignItems: "center"
                                 }}>
                                     <div>
-                                        <p style={{margin: 0, fontSize: "0.85rem", fontWeight: "bold"}}>Study / Office
+                                        <p style={{margin: 0, fontSize: "0.85rem", fontWeight: "bold"}}>Study /
+                                            Office
                                             Included</p>
                                         <p style={{
                                             margin: 0,
@@ -392,10 +407,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.study}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, study: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('study')}
+                                        onChange={(e) => handleSelectedRoom('study')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>
@@ -416,10 +429,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.utility}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, utility: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('utility')}
+                                        onChange={(e) => handleSelectedRoom('utility')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>
@@ -440,10 +451,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.guestWc}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, guestWc: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('guestWc')}
+                                        onChange={(e) => handleSelectedRoom('guestWc')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>
@@ -464,10 +473,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.storage}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, storage: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('storage')}
+                                        onChange={(e) => handleSelectedRoom('storage')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>
@@ -488,10 +495,8 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={extractInfo.outdoor}
-                                        onChange={(e) => {
-                                            setExtractInfo((prev: any) => ({...prev, outdoor: e.target.checked}));
-                                        }}
+                                        checked={rooms.includes('outdoor')}
+                                        onChange={(e) => handleSelectedRoom('outdoor')}
                                         style={{width: "18px", height: "18px"}}
                                     />
                                 </div>

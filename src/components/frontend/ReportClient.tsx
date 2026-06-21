@@ -1,9 +1,9 @@
 'use client';
 
 import {useEffect, useState} from "react";
-import {apiDelete, apiGet} from "@/lib/api";
 import ReportCard from "@/components/frontend/ReportCard";
 import {useConfirm, useSpinner} from "@/contexts/AppContext";
+import {useDeleteInspectionMutation, useInspectionsQuery} from "@/queries/inspection";
 
 const ReportClient = () => {
     const [reports, setReports] = useState<any[]>([]);
@@ -11,35 +11,38 @@ const ReportClient = () => {
     const confirm = useConfirm();
     const spinner = useSpinner();
 
-    const fetchReports = async () => {
-        try {
-            setLoading(true);
-            const response = await apiGet(`/inspection/inspections`, {limit: 5});
-            setReports([...response.data.items]);
-        } catch (e) {
-
-        } finally {
-            setLoading(false);
+    const {
+        data: inspectionData,
+        isFetching: isInspectionFetching,
+        refetch: refetchInspections
+    } = useInspectionsQuery({limit: 5});
+    const {mutate: deleteInspection} = useDeleteInspectionMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSettled: () => {
+            spinner.hide();
+        },
+        onError: (error, variables, context) => {
+            console.error(error);
+        },
+        onSuccess: (data, variables, onMutateResult, context) => {
+            refetchInspections();
         }
-    }
+    })
 
     const handleDelete = (report: any) => {
         confirm.open({
-            message:'Are you sure you want to delete this report?',
-            onConfirm:()=>{
-                spinner.show();
-                apiDelete(`/inspection/inspections/${report.id}`).then(() => {
-                    fetchReports();
-                }).finally(() => {
-                    spinner.hide();
-                });
+            message: 'Are you sure you want to delete this report?',
+            onConfirm: () => {
+                deleteInspection(report.id);
             }
         })
     }
 
     useEffect(() => {
-        fetchReports();
-    }, []);
+        if (!isInspectionFetching) setReports(inspectionData.items);
+    }, [isInspectionFetching, inspectionData]);
 
     return (
         <section className={'mb-10'}>
