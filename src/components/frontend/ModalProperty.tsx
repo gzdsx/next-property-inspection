@@ -7,6 +7,7 @@ import NumberInput from "@/components/frontend/NumberInput";
 import {Spinner} from "@/components/ui/spinner";
 import {useCreatePropertyMutation, useUpdatePropertyMutation} from "@/queries/property";
 import {Property} from "@/types";
+import {toast} from "sonner";
 
 interface ModalPropertyProps {
     onClose: () => void;
@@ -44,6 +45,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
         },
         onError: (error) => {
             console.log(error);
+            toast.error(error.message);
         }
     });
 
@@ -59,7 +61,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
             onClose();
         },
         onError: (error) => {
-
+            toast.error(error.message);
         }
     });
 
@@ -201,7 +203,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                                     onChange={handleImageUpload}
                                     className={'hidden'}
                                 />
-                                <div onClick={()=>imageInputRef.current?.click()} style={{
+                                <div onClick={() => imageInputRef.current?.click()} style={{
                                     height: "120px",
                                     border: "2px dashed var(--panel-border)",
                                     borderRadius: "12px",
