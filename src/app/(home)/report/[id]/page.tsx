@@ -8,12 +8,14 @@ import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
 import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
-    AlertTriangle, Loader2,
+    AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers,
 } from 'lucide-react';
 import ReactPlayer from 'react-player';
-import type {Inspection, InsoectionItem} from '@/types';
+import type {Inspection, InspectionItem} from '@/types';
 import {useTranslations} from "@/contexts/LocaleContext";
 import {capitalize} from "@/lib/utils";
+import {apiPost, apiPut, apiDelete} from "@/lib/api";
+import {toast} from 'sonner';
 import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspection";
 import dayjs from "dayjs";
 import {useSpinner} from "@/contexts/AppContext";
@@ -73,7 +75,7 @@ export default function ReportPage() {
     const playerRef = useRef<HTMLVideoElement>(null);
 
     const [inspection, setInspection] = useState<Inspection | null>(null);
-    const [items, setItems] = useState<InsoectionItem[]>([]);
+    const [items, setItems] = useState<InspectionItem[]>([]);
 
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -81,6 +83,14 @@ export default function ReportPage() {
     const [isSigned, setIsSigned] = useState(false);
 
     const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+    const [editingItemId, setEditingItemId] = useState<number | null>(null);
+    const [editForm, setEditForm] = useState({
+        item_name: '',
+        description: '',
+        condition: '',
+        severity: '',
+        elapsed_seconds: 0
+    });
     const intervalRef = useRef<any>(null);
 
     const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
@@ -123,7 +133,7 @@ export default function ReportPage() {
     // ─── Derived ──────────────────────────────────────────────────────────────
 
     const roomGroups = useMemo(() => {
-        const groups = new Map<string, InsoectionItem[]>();
+        const groups = new Map<string, InspectionItem[]>();
         for (const item of items) {
             const room = item.room_name || 'Unknown';
             if (!groups.has(room)) groups.set(room, []);
@@ -145,9 +155,137 @@ export default function ReportPage() {
         return stats;
     }, [items]);
 
+    const roomSegments = useMemo(() => {
+        if (items.length === 0) return [];
+        const roomMap: Record<string, { start: number; end: number; good: number; fair: number; poor: number }> = {};
+        for (const item of items) {
+            const room = item.room_name || 'General';
+            const sec = item.elapsed_seconds || 0;
+            const c = (item.condition || '').toLowerCase();
+            let rate: 'good' | 'fair' | 'poor' = 'good';
+            if (c.includes('very poor') || c.includes('poor')) rate = 'poor';
+            else if (c.includes('fair')) rate = 'fair';
+
+            if (!roomMap[room]) roomMap[room] = {start: sec, end: sec + 5, good: 0, fair: 0, poor: 0};
+            roomMap[room].start = Math.min(roomMap[room].start, sec);
+            roomMap[room].end = Math.max(roomMap[room].end, sec + 5);
+            roomMap[room][rate]++;
+        }
+        const segs = Object.entries(roomMap)
+            .map(([name, d], idx) => ({
+                name,
+                start: d.start,
+                end: d.end,
+                color: ROOM_COLORS[idx % ROOM_COLORS.length],
+                goodCount: d.good,
+                fairCount: d.fair,
+                poorCount: d.poor,
+            }))
+            .sort((a, b) => a.start - b.start);
+        for (let i = 0; i < segs.length - 1; i++) {
+            segs[i].end = segs[i + 1].start;
+        }
+        return segs;
+    }, [items]);
+
+    const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
+    const [videoDuration, setVideoDuration] = useState(0);
+
+    useEffect(() => {
+        const video = playerRef.current;
+        if (!video) return;
+        const onMeta = () => setVideoDuration(video.duration || 0);
+        const onTime = () => {
+            const cur = video.currentTime || 0;
+            const idx = roomSegments.findIndex(seg => cur >= seg.start && cur <= seg.end);
+            if (idx !== -1) setActiveSegmentIndex(idx);
+        };
+        video.addEventListener('loadedmetadata', onMeta);
+        video.addEventListener('timeupdate', onTime);
+        return () => {
+            video.removeEventListener('loadedmetadata', onMeta);
+            video.removeEventListener('timeupdate', onTime);
+        };
+    }, [roomSegments, inspection?.video_url]);
+
+    useEffect(() => {
+        if (roomSegments.length > 0 && videoDuration > 0) {
+            roomSegments[roomSegments.length - 1].end = videoDuration;
+        }
+    }, [videoDuration, roomSegments]);
+
     useEffect(() => {
         setExpandedRooms(new Set(roomGroups.map(g => g.name)));
     }, [roomGroups]);
+
+    // ─── Item editing ──────────────────────────────────────────────────────────
+
+    const startEditItem = (item: InspectionItem) => {
+        setEditingItemId(item.id);
+        setEditForm({
+            item_name: item.item_name,
+            description: item.description || '',
+            condition: item.condition,
+            severity: item.severity || '',
+            elapsed_seconds: item.elapsed_seconds || 0,
+        });
+    };
+
+    const cancelEditItem = () => {
+        setEditingItemId(null);
+    };
+
+    const saveEditItem = async () => {
+        if (!editingItemId) return;
+        try {
+            if (editingItemId < 0) {
+                const created = await apiPost(`/inspections/${id}/items`, editForm);
+                setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...created} : i));
+            } else {
+                await apiPut(`/inspection/${id}/items/${editingItemId}`, editForm);
+                setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...editForm} : i));
+            }
+            setEditingItemId(null);
+            toast.success('Item saved');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to save item');
+        }
+    };
+
+    const deleteItem = async (itemId: number) => {
+        if (itemId < 0) {
+            setItems(prev => prev.filter(i => i.id !== itemId));
+            setEditingItemId(null);
+            return;
+        }
+        try {
+            await apiDelete(`/inspection/${id}/items/${itemId}`);
+            setItems(prev => prev.filter(i => i.id !== itemId));
+            toast.success('Item deleted');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to delete item');
+        }
+    };
+
+    const addItem = (roomName: string) => {
+        const elapsed = playerRef.current ? Math.round(playerRef.current.currentTime) : 0;
+        const tempId = -Date.now();
+        const newItem: InspectionItem = {
+            id: tempId,
+            video_id: 0,
+            room_name: roomName,
+            item_name: 'New Item',
+            description: '',
+            condition: 'Good',
+            severity: '',
+            elapsed_seconds: elapsed,
+            image: '',
+            created_at: '',
+            updated_at: '',
+        };
+        setItems(prev => [...prev, newItem]);
+        startEditItem(newItem);
+    };
 
     // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -305,6 +443,99 @@ export default function ReportPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Room Segments Timeline */}
+                    {roomSegments.length > 0 && (
+                        <div className="mt-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="flex items-center gap-1.5 text-xs font-bold text-(--text-muted)">
+                                    <Layers size={14}/> Room Segments Timeline
+                                </span>
+                            </div>
+
+                            {/* Segment bar */}
+                            <div className="timeline-track">
+                                {roomSegments.map((seg, idx) => {
+                                    const total = videoDuration || 1;
+                                    const widthPct = ((seg.end - seg.start) / total) * 100;
+                                    return (
+                                        <div
+                                            key={idx}
+                                            className={`timeline-segment ${activeSegmentIndex === idx ? 'active' : ''}`}
+                                            style={{width: `${widthPct}%`, backgroundColor: seg.color}}
+                                            onClick={() => {
+                                                if (playerRef.current) {
+                                                    playerRef.current.currentTime = seg.start;
+                                                    playerRef.current.play().catch(() => {
+                                                    });
+                                                    setActiveSegmentIndex(idx);
+                                                }
+                                            }}
+                                            title={`${seg.name} (${formatTime(seg.start)} – ${formatTime(seg.end)})`}
+                                        >
+                                            {widthPct > 8 && <span className="text-[0.6rem] truncate">{seg.name}</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Active room items - horizontal card scroll */}
+                            {(() => {
+                                const activeSeg = activeSegmentIndex !== null ? roomSegments[activeSegmentIndex] : null;
+                                if (!activeSeg) return null;
+                                const activeRoomItems = [...items]
+                                    .filter(i => (i.room_name || 'General') === activeSeg.name)
+                                    .sort((a, b) => a.elapsed_seconds - b.elapsed_seconds);
+                                if (activeRoomItems.length === 0) return null;
+
+                                return (
+                                    <div className="mt-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="w-2 h-2 rounded-full shrink-0"
+                                                  style={{backgroundColor: activeSeg.color}}/>
+                                            <span className="text-xs font-bold" style={{color: activeSeg.color}}>
+                                                {activeSeg.name}
+                                            </span>
+                                            <span className="text-[0.65rem] text-(--text-muted)">
+                                                {activeRoomItems.length} item{activeRoomItems.length !== 1 ? 's' : ''}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2.5 overflow-x-auto pb-2"
+                                             style={{scrollbarWidth: 'thin'}}>
+                                            {activeRoomItems.map(item => {
+                                                const cs = getConditionClass(item.condition);
+                                                return (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => handleSeekItem(item.elapsed_seconds)}
+                                                        className="glass-panel shrink-0 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/[0.04] transition-all flex flex-col items-center gap-1.5 text-center"
+                                                        style={{width: '140px'}}
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Play size={8}
+                                                                  className="fill-blue-400 text-blue-400 shrink-0"/>
+                                                            <span
+                                                                className="font-mono text-[0.65rem] font-bold text-blue-400">
+                                                                {formatTime(item.elapsed_seconds)}
+                                                            </span>
+                                                        </div>
+                                                        <span
+                                                            className="text-[0.75rem] font-semibold text-foreground leading-tight truncate w-full">
+                                                            {item.item_name}
+                                                        </span>
+                                                        <span
+                                                            className={`text-[0.6rem] font-bold px-1.5 py-0.5 rounded ${cs.bg} ${cs.text}`}>
+                                                            {item.condition}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
                 </section>
 
                 {/* ── Right: Inspection Items ─────────────────────────────── */}
@@ -357,35 +588,149 @@ export default function ReportPage() {
                             return (
                                 <div key={group.name} className="glass-panel overflow-hidden">
                                     <div
-                                        onClick={() => toggleRoom(group.name)}
-                                        className="flex items-center gap-2.5 px-4 py-3.5 cursor-pointer"
+                                        className="flex items-center gap-2.5 px-4 py-3.5"
                                         style={{borderLeft: `4px solid ${roomColor}`}}
                                     >
-                                        {isExpanded
-                                            ? <ChevronDown size={16} className="text-(--text-muted) shrink-0"/>
-                                            : <ChevronRight size={16} className="text-(--text-muted) shrink-0"/>
-                                        }
-                                        <span className="flex-1 font-bold text-[0.95rem]">{group.name}</span>
-                                        <span className="text-[0.7rem] text-(--text-muted) font-semibold">
-                                            {group.items.length} item{group.items.length !== 1 ? 's' : ''}
-                                        </span>
-                                        {issueCount > 0 && (
-                                            <span
-                                                className="flex items-center gap-1 text-[0.65rem] font-bold px-2 py-0.5 rounded-md bg-red-500/12 text-red-500">
-                                                <AlertTriangle size={10}/>{issueCount}
+                                        <div
+                                            onClick={() => toggleRoom(group.name)}
+                                            className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
+                                        >
+                                            {isExpanded
+                                                ? <ChevronDown size={16} className="text-(--text-muted) shrink-0"/>
+                                                : <ChevronRight size={16} className="text-(--text-muted) shrink-0"/>
+                                            }
+                                            <span className="flex-1 font-bold text-[0.95rem]">{group.name}</span>
+                                            <span className="text-[0.7rem] text-(--text-muted) font-semibold">
+                                                {group.items.length} item{group.items.length !== 1 ? 's' : ''}
                                             </span>
-                                        )}
+                                            {issueCount > 0 && (
+                                                <span
+                                                    className="flex items-center gap-1 text-[0.65rem] font-bold px-2 py-0.5 rounded-md bg-red-500/12 text-red-500">
+                                                    <AlertTriangle size={10}/>{issueCount}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => addItem(group.name)}
+                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                            title="Add item to this room"
+                                        >
+                                            <Plus size={14}/>
+                                        </button>
                                     </div>
 
                                     {isExpanded && (
                                         <div className="border-t border-white/8">
                                             {group.items.map(item => {
-                                                const cs = getConditionClass(item.condition);
-                                                const sv = item.severity ? SEVERITY_STYLE[item.severity.toLowerCase()] : null;
+                                                const isEditing = editingItemId === item.id;
+                                                const cs = getConditionClass(isEditing ? editForm.condition : item.condition);
+                                                const sv = (isEditing ? editForm.severity : item.severity)
+                                                    ? SEVERITY_STYLE[(isEditing ? editForm.severity : item.severity).toLowerCase()]
+                                                    : null;
+
+                                                if (isEditing) {
+                                                    return (
+                                                        <div key={item.id}
+                                                             className="flex flex-col gap-2.5 py-3 px-4 pl-7.5 border-b border-white/8 bg-white/[0.03]">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button
+                                                                        onClick={() => handleSeekItem(editForm.elapsed_seconds)}
+                                                                        className="flex items-center justify-center w-6 h-7 rounded-l-lg bg-blue-500/15 text-blue-400 border-none cursor-pointer"
+                                                                        title="Seek to this time"
+                                                                    >
+                                                                        <Play size={9} className="fill-blue-400"/>
+                                                                    </button>
+                                                                    <input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        step={1}
+                                                                        value={editForm.elapsed_seconds}
+                                                                        onChange={e => setEditForm(f => ({
+                                                                            ...f,
+                                                                            elapsed_seconds: Math.max(0, parseInt(e.target.value) || 0)
+                                                                        }))}
+                                                                        className="w-16 px-1.5 py-1 text-center font-mono text-[0.7rem] font-bold rounded-r-lg bg-white/5 border border-white/10 text-blue-400 outline-none"
+                                                                    />
+                                                                    <span
+                                                                        className="text-[0.6rem] text-[var(--text-muted)]">sec</span>
+                                                                </div>
+                                                                <input
+                                                                    value={editForm.item_name}
+                                                                    onChange={e => setEditForm(f => ({
+                                                                        ...f,
+                                                                        item_name: e.target.value
+                                                                    }))}
+                                                                    className="flex-1 px-2.5 py-1.5 text-sm font-bold rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                    placeholder="Item name"
+                                                                />
+                                                            </div>
+                                                            <input
+                                                                value={editForm.description}
+                                                                onChange={e => setEditForm(f => ({
+                                                                    ...f,
+                                                                    description: e.target.value
+                                                                }))}
+                                                                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                placeholder="Description"
+                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <select
+                                                                    value={editForm.condition}
+                                                                    onChange={e => setEditForm(f => ({
+                                                                        ...f,
+                                                                        condition: e.target.value
+                                                                    }))}
+                                                                    className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                >
+                                                                    <option value="New Item">New Item</option>
+                                                                    <option value="Good">Good</option>
+                                                                    <option value="Fair">Fair</option>
+                                                                    <option value="Poor">Poor</option>
+                                                                    <option value="Very Poor">Very Poor</option>
+                                                                </select>
+                                                                <select
+                                                                    value={editForm.severity}
+                                                                    onChange={e => setEditForm(f => ({
+                                                                        ...f,
+                                                                        severity: e.target.value
+                                                                    }))}
+                                                                    className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                >
+                                                                    <option value="">No Issue</option>
+                                                                    <option value="Low">Low</option>
+                                                                    <option value="Medium">Medium</option>
+                                                                    <option value="High">High</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="flex justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => deleteItem(item.id)}
+                                                                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border-none cursor-pointer mr-auto"
+                                                                >
+                                                                    <Trash2 size={12}/> Delete
+                                                                </button>
+                                                                <button
+                                                                    onClick={cancelEditItem}
+                                                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/5 text-[var(--text-muted)] border border-white/10 cursor-pointer"
+                                                                >
+                                                                    <X size={12}/> Cancel
+                                                                </button>
+                                                                <button
+                                                                    onClick={saveEditItem}
+                                                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500 text-white border-none cursor-pointer"
+                                                                >
+                                                                    <Check size={12}/> Save
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+
                                                 return (
                                                     <div
                                                         key={item.id}
-                                                        className="flex items-center gap-3 py-2.5 px-4 pl-7.5 border-b border-white/8 text-[0.85rem]"
+                                                        className="group flex items-center gap-3 py-2.5 px-4 pl-7.5 border-b border-white/8 text-[0.85rem] hover:bg-white/[0.02] transition-colors"
                                                     >
                                                         <button
                                                             onClick={() => handleSeekItem(item.elapsed_seconds)}
@@ -412,6 +757,12 @@ export default function ReportPage() {
                                                             className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
                                                             {item.condition}
                                                         </span>
+                                                        <button
+                                                            onClick={() => startEditItem(item)}
+                                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-[var(--text-muted)] cursor-pointer hover:text-blue-400"
+                                                        >
+                                                            <Pencil size={12}/>
+                                                        </button>
                                                     </div>
                                                 );
                                             })}

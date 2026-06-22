@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import {apiGet, apiPut, apiPost, apiDelete} from '@/lib/api';
 import {toast} from 'sonner';
-import type {Inspection, InspectionVideo, InsoectionItem} from '@/types';
+import type {Inspection, InspectionVideo, InspectionItem} from '@/types';
 
 const ELEMENT_KEYWORDS = [
     'door', 'flooring', 'wall', 'ceiling', 'window', 'baseboard', 'skirting',
@@ -33,7 +33,7 @@ function formatTime(seconds: number) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-interface RoomItem extends InsoectionItem {
+interface RoomItem extends InspectionItem {
     _videoId: number;
     _videoSrc: string;
 }
@@ -47,7 +47,7 @@ export default function RoomDetailPage() {
     const carouselRef = useRef<HTMLDivElement>(null);
 
     const [inspection, setInspection] = useState<Inspection | null>(null);
-    const [videos, setVideos] = useState<(InspectionVideo & {items?: InsoectionItem[]})[]>([]);
+    const [videos, setVideos] = useState<(InspectionVideo & {items?: InspectionItem[]})[]>([]);
     const [activeVideoId, setActiveVideoId] = useState<number | null>(null);
     const [activeTimestampIdx, setActiveTimestampIdx] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(true);

@@ -63,7 +63,7 @@ export type InspectionVideo = {
     [key: string]: any;
 }
 
-export type InsoectionItem = {
+export type InspectionItem = {
     id: number;
     video_id: number;
     room_name: string;
