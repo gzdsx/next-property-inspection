@@ -15,6 +15,7 @@ import type {Inspection, InspectionItem} from '@/types';
 import {useTranslations} from "@/contexts/LocaleContext";
 import {capitalize} from "@/lib/utils";
 import {apiPost, apiPut, apiDelete} from "@/lib/api";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {toast} from 'sonner';
 import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspection";
 import dayjs from "dayjs";
@@ -242,7 +243,7 @@ export default function ReportPage() {
                 const created = await apiPost(`/inspections/${id}/items`, editForm);
                 setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...created} : i));
             } else {
-                await apiPut(`/inspection/${id}/items/${editingItemId}`, editForm);
+                await apiPut(`/inspections/${id}/items/${editingItemId}`, editForm);
                 setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...editForm} : i));
             }
             setEditingItemId(null);
@@ -259,7 +260,7 @@ export default function ReportPage() {
             return;
         }
         try {
-            await apiDelete(`/inspection/${id}/items/${itemId}`);
+            await apiDelete(`/inspections/${id}/items/${itemId}`);
             setItems(prev => prev.filter(i => i.id !== itemId));
             toast.success('Item deleted');
         } catch (err: any) {
@@ -675,33 +676,35 @@ export default function ReportPage() {
                                                                 placeholder="Description"
                                                             />
                                                             <div className="flex items-center gap-2">
-                                                                <select
+                                                                <Select
                                                                     value={editForm.condition}
-                                                                    onChange={e => setEditForm(f => ({
-                                                                        ...f,
-                                                                        condition: e.target.value
-                                                                    }))}
-                                                                    className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                    onValueChange={v => setEditForm(f => ({...f, condition: v}))}
                                                                 >
-                                                                    <option value="New Item">New Item</option>
-                                                                    <option value="Good">Good</option>
-                                                                    <option value="Fair">Fair</option>
-                                                                    <option value="Poor">Poor</option>
-                                                                    <option value="Very Poor">Very Poor</option>
-                                                                </select>
-                                                                <select
-                                                                    value={editForm.severity}
-                                                                    onChange={e => setEditForm(f => ({
-                                                                        ...f,
-                                                                        severity: e.target.value
-                                                                    }))}
-                                                                    className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                                                                    <SelectTrigger size="sm" className="flex-1 text-xs">
+                                                                        <SelectValue/>
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="New Item">New Item</SelectItem>
+                                                                        <SelectItem value="Good">Good</SelectItem>
+                                                                        <SelectItem value="Fair">Fair</SelectItem>
+                                                                        <SelectItem value="Poor">Poor</SelectItem>
+                                                                        <SelectItem value="Very Poor">Very Poor</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <Select
+                                                                    value={editForm.severity || '_none'}
+                                                                    onValueChange={v => setEditForm(f => ({...f, severity: v === '_none' ? '' : v}))}
                                                                 >
-                                                                    <option value="">No Issue</option>
-                                                                    <option value="Low">Low</option>
-                                                                    <option value="Medium">Medium</option>
-                                                                    <option value="High">High</option>
-                                                                </select>
+                                                                    <SelectTrigger size="sm" className="flex-1 text-xs">
+                                                                        <SelectValue/>
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="_none">No Issue</SelectItem>
+                                                                        <SelectItem value="Low">Low</SelectItem>
+                                                                        <SelectItem value="Medium">Medium</SelectItem>
+                                                                        <SelectItem value="High">High</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
                                                             </div>
                                                             <div className="flex justify-end gap-2">
                                                                 <button
