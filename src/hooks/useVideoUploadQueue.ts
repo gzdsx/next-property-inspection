@@ -3,6 +3,7 @@
 import {useState, useRef, useCallback} from 'react';
 import pLimit from 'p-limit';
 import {apiPost} from '@/lib/api';
+import {arrayMove} from "@dnd-kit/sortable";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,15 @@ export interface UploadFileItem {
     progress: number;
     url?: string;
     error?: string;
+    chunk_index: number;
+}
+
+interface MergerdVideo {
+    name: string,
+    path: string,
+    url: string,
+
+    [key: string]: any
 }
 
 interface UseVideoUploadQueueOptions {
@@ -23,7 +33,7 @@ interface UseVideoUploadQueueOptions {
     maxConcurrentChunks?: number;
     saveDir?: string;
     autoRemoveCompleted?: boolean;
-    onFileCompleted?: (item: UploadFileItem, serverUrl: string) => void | Promise<void>;
+    onFileCompleted?: (item: UploadFileItem, video: MergerdVideo) => void | Promise<void>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,11 +76,12 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
         const videoFiles = Array.from(fileList).filter(f => f.type.startsWith('video/'));
         if (videoFiles.length === 0) return;
 
-        const items: UploadFileItem[] = videoFiles.map(file => ({
+        const items: UploadFileItem[] = videoFiles.map((file, index) => ({
             id: crypto.randomUUID(),
             file,
             status: 'pending' as const,
             progress: 0,
+            chunk_index: index,
         }));
         setFiles(prev => [...prev, ...items]);
     }, []);
@@ -98,6 +109,12 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
 
     const clearCompleted = useCallback(() => {
         setFiles(prev => prev.filter(f => f.status !== 'completed'));
+    }, []);
+
+    // ── Reorder files ─────────────────────────────────────────────────────────
+
+    const reorderFiles = useCallback((oldIndex: number, newIndex: number) => {
+        setFiles(prev => arrayMove(prev, oldIndex, newIndex));
     }, []);
 
     // ── Clear all files ───────────────────────────────────────────────────────
@@ -157,13 +174,13 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
             save_dir: saveDir,
         }, {signal: controller.signal});
 
-        const serverUrl = mergeResponse.data?.url || mergeResponse.url || mergeResponse.data?.path || mergeResponse.path;
-
         // 3. Callback for saving to remote (e.g. associate with inspection)
         updateFile(item.id, {status: 'saving', progress: 93});
 
+        const serverUrl = mergeResponse.url || mergeResponse.path || mergeResponse.data?.url || mergeResponse.data?.path || '';
+
         if (onFileCompleted) {
-            await onFileCompleted({...item, url: serverUrl}, serverUrl);
+            await onFileCompleted({...item, url: serverUrl}, mergeResponse);
         }
 
         abortControllers.current.delete(item.id);
@@ -226,6 +243,7 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
         addFiles,
         removeFile,
         retryFile,
+        reorderFiles,
         clearCompleted,
         clearAll,
         startUpload,

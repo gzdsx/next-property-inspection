@@ -25,6 +25,11 @@
 		"address_placeholder": "Enter property address (e.g., 54 Carmel Street)",
 		"notes_label": "Areas of Concern",
 		"notes_placeholder": "e.g., New pet scratches in the master bedroom",
-		"start_btn": "Start Inspection"
+		"start_btn": "Start Inspection",
+		"type_routine": "Routine Inspection",
+		"type_movein": "Move In",
+		"type_moveout": "Move Out",
+		"type_maintenance": "Maintenance",
+		"type_other": "Other"
 	}
 }

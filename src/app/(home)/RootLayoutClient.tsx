@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, {useState} from "react";
+import {usePathname} from "next/navigation";
 import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Video} from "lucide-react";
 import {signOut} from "next-auth/react";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
@@ -9,9 +10,22 @@ import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 const queryClient = new QueryClient();
 
 export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
+    const pathname = usePathname();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [inspectorProfile, setInspectorProfile] = useState<any>({});
     const theme = 'dark';
+
+    const navItems = [
+        {href: '/', icon: HomeIcon, title: 'Dashboard'},
+        {href: '/videos/upload', icon: Video, title: 'Batch Video Analysis'},
+        {href: '/analytics', icon: BarChart3, title: 'Analytics'},
+        {href: '/profile', icon: Settings, title: 'Profile'},
+    ];
+
+    const isActive = (href: string) => {
+        if (href === '/') return pathname === '/';
+        return pathname.startsWith(href);
+    };
     return (
         <QueryClientProvider client={queryClient}>
             <div className="dashboard-layout">
@@ -21,26 +35,17 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                             <Sparkles size={24}/>
                         </div>
                         <nav className="sidebar-menu">
-                            <div title="Dashboard">
-                                <Link href={'/'}>
-                                    <HomeIcon size={22}/>
-                                </Link>
-                            </div>
-                            <div title="Batch Video Analysis">
-                                <Link href={'/videos/upload'}>
-                                    <Video size={22}/>
-                                </Link>
-                            </div>
-                            <div title="Analytics">
-                                <Link href={'/analytics'}>
-                                    <BarChart3 size={22}/>
-                                </Link>
-                            </div>
-                            <div title="profile">
-                                <Link href={'/profile'}>
-                                    <Settings size={22}/>
-                                </Link>
-                            </div>
+                            {navItems.map(item => (
+                                <div
+                                    key={item.href}
+                                    title={item.title}
+                                    className={`sidebar-item ${isActive(item.href) ? 'active' : ''}`}
+                                >
+                                    <Link href={item.href}>
+                                        <item.icon size={22}/>
+                                    </Link>
+                                </div>
+                            ))}
                         </nav>
                     </div>
 

@@ -1,47 +1,47 @@
 'use client';
 
+import Link from 'next/link';
 import {useRef, useState, useEffect, useMemo} from 'react';
 import {useParams, useRouter} from 'next/navigation';
-import Link from 'next/link';
 import SignaturePad from '@/components/common/SignaturePad';
 import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
 import {
-    FileSignature, ChevronLeft, Share2, Layers, Check, Edit2,
+    FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
-    AlertTriangle, Loader2, Pencil, Save,
+    AlertTriangle, Loader2,
 } from 'lucide-react';
-import {apiGet, apiPut} from '@/lib/api';
-import {toast} from 'sonner';
-import type {Inspection, InspectionVideo, InsoectionItem} from '@/types';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {Button} from '@/components/ui/button';
+import ReactPlayer from 'react-player';
+import type {Inspection, InsoectionItem} from '@/types';
+import {useTranslations} from "@/contexts/LocaleContext";
+import {capitalize} from "@/lib/utils";
+import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspection";
+import dayjs from "dayjs";
+import {useSpinner} from "@/contexts/AppContext";
 
-const CONDITION_STYLE: Record<string, { bg: string; color: string }> = {
-    'new item': {bg: 'rgba(16,185,129,0.15)', color: '#10b981'},
-    'good': {bg: 'rgba(59,130,246,0.15)', color: '#3b82f6'},
-    'fair': {bg: 'rgba(245,158,11,0.15)', color: '#f59e0b'},
-    'poor': {bg: 'rgba(239,68,68,0.15)', color: '#ef4444'},
-    'very poor': {bg: 'rgba(127,29,29,0.25)', color: '#f87171'},
+const CONDITION_STYLE: Record<string, { bg: string; text: string }> = {
+    'new item': {bg: 'bg-emerald-500/15', text: 'text-emerald-400'},
+    'good': {bg: 'bg-blue-500/15', text: 'text-blue-400'},
+    'fair': {bg: 'bg-amber-500/15', text: 'text-amber-400'},
+    'poor': {bg: 'bg-red-500/15', text: 'text-red-400'},
+    'very poor': {bg: 'bg-red-900/25', text: 'text-red-400'},
 };
 
-const SEVERITY_STYLE: Record<string, { bg: string; color: string }> = {
-    'low': {bg: 'rgba(245,158,11,0.12)', color: '#f59e0b'},
-    'medium': {bg: 'rgba(249,115,22,0.12)', color: '#f97316'},
-    'high': {bg: 'rgba(239,68,68,0.12)', color: '#ef4444'},
+const SEVERITY_STYLE: Record<string, { bg: string; text: string }> = {
+    'low': {bg: 'bg-amber-500/12', text: 'text-amber-500'},
+    'medium': {bg: 'bg-orange-500/12', text: 'text-orange-500'},
+    'high': {bg: 'bg-red-500/12', text: 'text-red-500'},
 };
 
 const ROOM_COLORS = ['#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#6366f1', '#06b6d4', '#db2777', '#059669', '#d97706', '#4f46e5'];
 
-function getConditionStyle(condition: string) {
+function getConditionClass(condition: string) {
     const key = (condition || '').toLowerCase().trim();
     if (key.includes('very poor')) return CONDITION_STYLE['very poor'];
     if (key.includes('poor')) return CONDITION_STYLE['poor'];
     if (key.includes('fair')) return CONDITION_STYLE['fair'];
     if (key.includes('good')) return CONDITION_STYLE['good'];
     if (key.includes('new')) return CONDITION_STYLE['new item'];
-    return {bg: 'rgba(156,163,175,0.15)', color: '#9ca3af'};
+    return {bg: 'bg-gray-500/15', text: 'text-gray-400'};
 }
 
 function formatTime(seconds: number) {
@@ -65,16 +65,15 @@ async function imageUrlToBase64(url: string): Promise<string> {
 }
 
 export default function ReportPage() {
+    const {t} = useTranslations('inspection');
+    const spinner = useSpinner();
     const params = useParams();
     const router = useRouter();
     const id = params.id as string;
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const playerRef = useRef<HTMLVideoElement>(null);
 
     const [inspection, setInspection] = useState<Inspection | null>(null);
-    const [videos, setVideos] = useState<(InspectionVideo & { items?: InsoectionItem[] })[]>([]);
-    const [activeVideoId, setActiveVideoId] = useState<number | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [items, setItems] = useState<InsoectionItem[]>([]);
 
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -82,91 +81,83 @@ export default function ReportPage() {
     const [isSigned, setIsSigned] = useState(false);
 
     const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
-    const [showToast, setShowToast] = useState(false);
-    const [toastMessage, setToastMessage] = useState('');
+    const intervalRef = useRef<any>(null);
 
-    const [editingVideo, setEditingVideo] = useState<(InspectionVideo & {items?: InsoectionItem[]}) | null>(null);
-    const [editForm, setEditForm] = useState({title: '', status: ''});
-    const [isVideoSaving, setIsVideoSaving] = useState(false);
+    const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
+    const {mutate: updateInspection} = useUpdateInspectionMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSuccess: () => {
+            setIsSigned(true);
+        },
+        onError: () => {
 
-    // ─── Fetch ────────────────────────────────────────────────────────────────
+        },
+        onSettled: () => {
+            spinner.hide();
+        }
+    })
 
     useEffect(() => {
-        if (!id) return;
-        (async () => {
-            try {
-                const data = await apiGet(`/inspections/${id}`);
-                setInspection(data);
-                const vids = data.videos || [];
-                setVideos(vids);
-                if (vids.length > 0) {
-                    setActiveVideoId(vids[0].id);
-                }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        })();
-    }, [id]);
+        if (!isFetching && serverData) {
+            setInspection(serverData);
+            setItems(serverData.items || []);
+            setIsSigned(!!serverData.signature);
+        }
+    }, [isFetching, serverData]);
 
-    // ─── Derived state ────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (serverData.status !== 'completed') {
+            intervalRef.current = setInterval(() => {
+                refetch();
+            }, 5000);
+        } else {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [serverData]);
 
-    const activeVideo = useMemo(() =>
-            videos.find(v => v.id === activeVideoId) || null,
-        [videos, activeVideoId]
-    );
-
-    const activeItems: InsoectionItem[] = useMemo(() =>
-            activeVideo?.items || [],
-        [activeVideo]
-    );
+    // ─── Derived ──────────────────────────────────────────────────────────────
 
     const roomGroups = useMemo(() => {
         const groups = new Map<string, InsoectionItem[]>();
-        for (const item of activeItems) {
+        for (const item of items) {
             const room = item.room_name || 'Unknown';
             if (!groups.has(room)) groups.set(room, []);
             groups.get(room)!.push(item);
         }
         return Array.from(groups.entries())
-            .map(([name, items]) => ({name, items: items.sort((a, b) => a.elapsed_seconds - b.elapsed_seconds)}))
-            .sort((a, b) => {
-                const aMin = a.items[0]?.elapsed_seconds || 0;
-                const bMin = b.items[0]?.elapsed_seconds || 0;
-                return aMin - bMin;
-            });
-    }, [activeItems]);
+            .map(([name, list]) => ({name, items: list.sort((a, b) => a.elapsed_seconds - b.elapsed_seconds)}))
+            .sort((a, b) => (a.items[0]?.elapsed_seconds || 0) - (b.items[0]?.elapsed_seconds || 0));
+    }, [items]);
 
-    const allItems: InsoectionItem[] = useMemo(() =>
-            videos.flatMap(v => v.items || []),
-        [videos]
-    );
+    const conditionStats = useMemo(() => {
+        const stats = {good: 0, fair: 0, poor: 0};
+        for (const item of items) {
+            const c = (item.condition || '').toLowerCase();
+            if (c.includes('very poor') || c.includes('poor')) stats.poor++;
+            else if (c.includes('fair')) stats.fair++;
+            else stats.good++;
+        }
+        return stats;
+    }, [items]);
 
-    // Auto-expand all rooms on video change
     useEffect(() => {
         setExpandedRooms(new Set(roomGroups.map(g => g.name)));
-    }, [activeVideoId]);
+    }, [roomGroups]);
 
-    // ─── Video switching ──────────────────────────────────────────────────────
-
-    const handleSelectVideo = (videoId: number) => {
-        setActiveVideoId(videoId);
-        if (videoRef.current) {
-            videoRef.current.load();
-        }
-    };
-
-    // ─── Seek to item timestamp ───────────────────────────────────────────────
+    // ─── Actions ──────────────────────────────────────────────────────────────
 
     const handleSeekItem = (seconds: number) => {
-        if (videoRef.current) {
-            videoRef.current.currentTime = seconds;
-            videoRef.current.play().catch(() => {});
+        if (playerRef.current) {
+            playerRef.current.currentTime = seconds;
+            playerRef.current.play().catch(() => {
+            });
         }
     };
-
-    // ─── Room expand/collapse ─────────────────────────────────────────────────
 
     const toggleRoom = (roomName: string) => {
         setExpandedRooms(prev => {
@@ -177,67 +168,16 @@ export default function ReportPage() {
         });
     };
 
-    // ─── Video edit dialog ──────────────────────────────────────────────────────
-
-    const openVideoEdit = (video: typeof videos[number]) => {
-        setEditingVideo(video);
-        setEditForm({
-            title: video.title || '',
-            status: video.status || 'draft',
-        });
-    };
-
-    const handleVideoSave = async () => {
-        if (!editingVideo) return;
-        setIsVideoSaving(true);
-        try {
-            await apiPut(`/inspections/${id}/videos/${editingVideo.id}`, editForm);
-            setVideos(prev => prev.map(v =>
-                v.id === editingVideo.id ? {...v, ...editForm} : v
-            ));
-            setEditingVideo(null);
-            toast.success('Video info updated');
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to update video');
-        } finally {
-            setIsVideoSaving(false);
-        }
-    };
-
-    // ─── Toast / Share ────────────────────────────────────────────────────────
-
-    const triggerToast = (msg: string) => {
-        setToastMessage(msg);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2500);
-    };
-
     const handleShare = () => {
         const shareUrl = `${window.location.origin}/shared/${id}`;
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            triggerToast('Share link copied to clipboard');
-        }).catch(() => alert('Failed to copy link'));
+        navigator.clipboard.writeText(shareUrl).catch(() => alert('Failed to copy link'));
     };
-
-    // ─── Signature ────────────────────────────────────────────────────────────
 
     const handleSignatureSaved = async (sigBase64: string) => {
         setShowSignaturePad(false);
         setSignatureBase64(sigBase64);
-        setIsSigned(true);
-        try {
-            await fetch(`/api/reports/${id}/sign`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({signature: sigBase64}),
-            });
-            triggerToast('Report signed successfully!');
-        } catch {
-            alert('Failed to save signature.');
-        }
+        updateInspection({id, data: {signatureData: sigBase64}} as any);
     };
-
-    // ─── PDF generation ───────────────────────────────────────────────────────
 
     const handleGeneratePDF = async () => {
         setIsGenerating(true);
@@ -250,7 +190,6 @@ export default function ReportPage() {
             email: user?.email || '',
             reference: user?.reference || String(id),
         };
-
         const now = new Date();
         const day = now.getDate();
         const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
@@ -263,13 +202,13 @@ export default function ReportPage() {
                     const src = property.image.startsWith('http') || property.image.startsWith('/')
                         ? property.image : `/uploads/${property.image}`;
                     coverBase64 = await imageUrlToBase64(src);
-                } catch {}
+                } catch {
+                }
             }
-
             generateInspectionReport({
                 address: property?.name || 'Inspection Report',
                 date: dateStr,
-                records: allItems.map(item => ({
+                records: items.map(item => ({
                     id: String(item.id),
                     room_name: item.room_name,
                     item_name: item.item_name,
@@ -282,7 +221,6 @@ export default function ReportPage() {
                 coverPhotoBase64: coverBase64,
                 tenantSignatureBase64: signatureBase64 || undefined,
             });
-            triggerToast('PDF generated successfully!');
         } catch {
             alert('Failed to generate report.');
         } finally {
@@ -290,65 +228,41 @@ export default function ReportPage() {
         }
     };
 
-    // ─── Condition stats ──────────────────────────────────────────────────────
+    // ─── Loading ──────────────────────────────────────────────────────────────
 
-    const conditionStats = useMemo(() => {
-        const stats = {good: 0, fair: 0, poor: 0};
-        for (const item of activeItems) {
-            const c = (item.condition || '').toLowerCase();
-            if (c.includes('very poor') || c.includes('poor')) stats.poor++;
-            else if (c.includes('fair')) stats.fair++;
-            else stats.good++;
-        }
-        return stats;
-    }, [activeItems]);
-
-    // ─── Loading / Error ──────────────────────────────────────────────────────
-
-    if (isLoading) {
+    if ((isFetching && !isRefetching) || !inspection) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 animate-spin" style={{color: 'var(--primary)'}}/>
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500"/>
             </div>
         );
     }
 
-    const property = inspection?.property;
+    const property = inspection.property || {};
 
     return (
         <>
-            <div className="main-viewport" style={{flexDirection: 'row'}}>
-                {/* ── Left: Video Player + Video List ─────────────────────── */}
-                <section style={{
-                    flex: 1.4,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '24px',
-                    overflowY: 'auto',
-                    borderRight: '1px solid var(--panel-border)',
-                }}>
+            <div className="main-viewport flex-row!">
+                {/* ── Left: Video Player ──────────────────────────────────── */}
+                <section className="flex flex-col flex-[1.4] p-6 overflow-y-auto border-r border-white/8">
                     {/* Header */}
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                        <Link href="/" style={{
-                            display: 'flex', alignItems: 'center', gap: '8px',
-                            color: 'var(--foreground)', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem',
-                        }}>
+                    <div className="flex justify-between items-center mb-5">
+                        <Link href={`/property/${property.id}`}
+                              className="flex items-center gap-2 text-foreground no-underline font-bold text-sm">
                             <ChevronLeft size={20}/>
-                            Back to Dashboard
+                            Back to Property
                         </Link>
-                        <div style={{display: 'flex', gap: '10px'}}>
+                        <div className="flex gap-2.5">
                             <button
                                 onClick={() => router.push(`/report/${id}/edit`)}
-                                className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm"
-                                style={{color: 'var(--foreground)'}}
+                                className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm text-foreground"
                             >
                                 <Edit2 size={16}/>
                                 Edit
                             </button>
                             <button
                                 onClick={handleShare}
-                                className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm"
-                                style={{color: 'var(--foreground)'}}
+                                className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm text-foreground"
                             >
                                 <Share2 size={16}/>
                                 Share
@@ -357,171 +271,67 @@ export default function ReportPage() {
                     </div>
 
                     {/* Address */}
-                    <div style={{marginBottom: '16px'}}>
-                        <h2 style={{
-                            fontSize: '1.35rem', fontWeight: '900', display: 'flex',
-                            alignItems: 'center', gap: '8px', color: 'var(--foreground)', letterSpacing: '-0.3px',
-                        }}>
-                            <MapPin size={20} style={{color: 'var(--primary)'}}/>
+                    <div className="mb-4">
+                        <h2 className="text-xl font-black flex items-center gap-2 text-foreground tracking-tight">
+                            <MapPin size={20} className="text-blue-500"/>
                             {property?.name || 'Inspection Report'}
                         </h2>
-                        {inspection?.type && (
-                            <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', marginLeft: '28px'}}>
-                                {inspection.type} · {new Date(inspection.created_at).toLocaleDateString()}
-                            </p>
-                        )}
+                        <div className="flex items-center gap-4 pl-7 mt-2">
+                            <span className="text-xs text-gray-400">
+                                {t(`type_${inspection?.type}`)} · {dayjs(inspection.created_at).format('MMM DD, YYYY')}
+                            </span>
+                            <span
+                                className={inspection?.status === 'completed' ? 'badge badge-success' : 'badge badge-warning'}>
+                                {capitalize(inspection?.status || '')}
+                            </span>
+                        </div>
                     </div>
 
-                    {/* Video Player */}
-                    <div className="glass-panel" style={{
-                        overflow: 'hidden', position: 'relative', background: 'black',
-                        borderRadius: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                    }}>
-                        {activeVideo ? (
-                            <video
-                                ref={videoRef}
-                                style={{width: '100%', maxHeight: '420px', display: 'block'}}
+                    {/* 16:9 Video Player */}
+                    <div
+                        className="relative w-full pb-[56.25%] rounded-sm overflow-hidden bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                        {inspection?.video_status === 'transcoded' || inspection?.video_status === 'uploded' ? (
+                            <ReactPlayer
+                                ref={playerRef}
+                                src={inspection.video_url}
                                 controls
-                                preload="auto"
-                                src={activeVideo.src}
+                                width="100%"
+                                height="100%"
+                                className="absolute inset-0"
                             />
                         ) : (
-                            <div style={{
-                                width: '100%', height: '240px', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)',
-                            }}>
-                                No videos available
+                            <div className="absolute inset-0 flex items-center justify-center text-(--text-muted)">
+                                The video is currently being transcoded, please wait.
                             </div>
                         )}
                     </div>
-
-                    {/* Video Selector List */}
-                    {videos.length > 0 && (
-                        <div style={{marginTop: '16px'}}>
-                            <h3 style={{
-                                fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)',
-                                marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px',
-                            }}>
-                                <Layers size={14}/>
-                                Walkthrough Videos ({videos.length})
-                            </h3>
-                            <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
-                                {videos.map((video, idx) => {
-                                    const isActive = video.id === activeVideoId;
-                                    const itemCount = video.items?.length || 0;
-                                    return (
-                                        <div
-                                            key={video.id}
-                                            className="glass-panel"
-                                            style={{
-                                                padding: '12px 16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent',
-                                                background: isActive ? 'var(--primary-bg)' : undefined,
-                                                transition: 'var(--transition)',
-                                            }}
-                                        >
-                                            <div
-                                                onClick={() => handleSelectVideo(video.id)}
-                                                style={{
-                                                    width: '36px', height: '36px', borderRadius: '10px',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    backgroundColor: isActive ? 'var(--primary-bg)' : 'rgba(255,255,255,0.05)',
-                                                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                                                    flexShrink: 0, cursor: 'pointer',
-                                                }}
-                                            >
-                                                {isActive
-                                                    ? <Play size={16} style={{fill: 'var(--primary)'}}/>
-                                                    : <FileVideo size={16}/>
-                                                }
-                                            </div>
-                                            <div
-                                                onClick={() => handleSelectVideo(video.id)}
-                                                style={{flex: 1, minWidth: 0, cursor: 'pointer'}}
-                                            >
-                                                <p style={{
-                                                    margin: 0, fontSize: '0.85rem', fontWeight: 'bold',
-                                                    color: isActive ? 'var(--primary)' : 'var(--foreground)',
-                                                }} className="truncate">
-                                                    {video.title || video.src?.split('/').pop() || `Video ${idx + 1}`}
-                                                </p>
-                                                <p style={{margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px'}}>
-                                                    {video.mime_type} · {itemCount} item{itemCount !== 1 ? 's' : ''}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openVideoEdit(video);
-                                                }}
-                                                style={{
-                                                    width: '32px', height: '32px', borderRadius: '8px',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    background: 'rgba(255,255,255,0.05)', border: 'none',
-                                                    color: 'var(--text-muted)', cursor: 'pointer', flexShrink: 0,
-                                                    transition: 'var(--transition)',
-                                                }}
-                                                title="Edit video info"
-                                            >
-                                                <Pencil size={14}/>
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                 </section>
 
-                {/* ── Right: Inspection Items by Room ─────────────────────── */}
-                <section style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '24px',
-                    overflowY: 'auto',
-                    background: 'rgba(10,15,26,0.15)',
-                }}>
-                    {/* Items header */}
-                    <div style={{marginBottom: '20px'}}>
-                        <h2 style={{fontSize: '1.25rem', fontWeight: '900', letterSpacing: '-0.4px'}}>
-                            Inspection Items
-                        </h2>
-                        <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px'}}>
-                            {activeItems.length} items in {roomGroups.length} room{roomGroups.length !== 1 ? 's' : ''}
-                            {activeVideo && ` · ${activeVideo.src?.split('/').pop() || 'Video'}`}
+                {/* ── Right: Inspection Items ─────────────────────────────── */}
+                <section className="flex flex-col flex-1 p-6 overflow-y-auto bg-white/1.5">
+                    <div className="mb-5">
+                        <h2 className="text-xl font-black tracking-tight">Inspection Items</h2>
+                        <p className="text-xs text-(--text-muted) mt-1">
+                            {items.length} items in {roomGroups.length} room{roomGroups.length !== 1 ? 's' : ''}
                         </p>
 
-                        {/* Condition stats bar */}
-                        {activeItems.length > 0 && (
-                            <div style={{display: 'flex', gap: '8px', marginTop: '12px'}}>
+                        {items.length > 0 && (
+                            <div className="flex gap-2 mt-3">
                                 {conditionStats.good > 0 && (
-                                    <span style={{
-                                        fontSize: '0.7rem', fontWeight: 'bold', padding: '4px 10px',
-                                        borderRadius: '8px', ...getConditionStyle('good'),
-                                        backgroundColor: getConditionStyle('good').bg,
-                                    }}>
+                                    <span
+                                        className="text-[0.7rem] font-bold px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-400">
                                         {conditionStats.good} Good
                                     </span>
                                 )}
                                 {conditionStats.fair > 0 && (
-                                    <span style={{
-                                        fontSize: '0.7rem', fontWeight: 'bold', padding: '4px 10px',
-                                        borderRadius: '8px', ...getConditionStyle('fair'),
-                                        backgroundColor: getConditionStyle('fair').bg,
-                                    }}>
+                                    <span
+                                        className="text-[0.7rem] font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400">
                                         {conditionStats.fair} Fair
                                     </span>
                                 )}
                                 {conditionStats.poor > 0 && (
-                                    <span style={{
-                                        fontSize: '0.7rem', fontWeight: 'bold', padding: '4px 10px',
-                                        borderRadius: '8px', ...getConditionStyle('poor'),
-                                        backgroundColor: getConditionStyle('poor').bg,
-                                    }}>
+                                    <span
+                                        className="text-[0.7rem] font-bold px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400">
                                         {conditionStats.poor} Poor
                                     </span>
                                 )}
@@ -530,16 +340,12 @@ export default function ReportPage() {
                     </div>
 
                     {/* Room groups */}
-                    <div style={{flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '20px'}}>
+                    <div className="flex-1 flex flex-col gap-3 pb-5">
                         {roomGroups.length === 0 && (
-                            <div className="glass-panel" style={{
-                                padding: '40px', textAlign: 'center', color: 'var(--text-muted)',
-                            }}>
-                                <FileVideo size={32} style={{margin: '0 auto 12px', opacity: 0.4}}/>
-                                <p style={{fontSize: '0.9rem', fontWeight: 'bold'}}>No inspection items yet</p>
-                                <p style={{fontSize: '0.75rem', marginTop: '4px'}}>
-                                    Upload videos and run AI analysis to extract room items
-                                </p>
+                            <div className="glass-panel p-10 text-center text-(--text-muted)">
+                                <FileVideo size={32} className="mx-auto mb-3 opacity-40"/>
+                                <p className="text-sm font-bold">No inspection items yet</p>
+                                <p className="text-xs mt-1">Upload videos and run AI analysis to extract room items</p>
                             </div>
                         )}
 
@@ -549,121 +355,61 @@ export default function ReportPage() {
                             const issueCount = group.items.filter(i => i.severity && i.severity.toLowerCase() !== '').length;
 
                             return (
-                                <div key={group.name} className="glass-panel" style={{overflow: 'hidden'}}>
-                                    {/* Room header */}
+                                <div key={group.name} className="glass-panel overflow-hidden">
                                     <div
                                         onClick={() => toggleRoom(group.name)}
-                                        style={{
-                                            padding: '14px 16px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '10px',
-                                            borderLeft: `4px solid ${roomColor}`,
-                                        }}
+                                        className="flex items-center gap-2.5 px-4 py-3.5 cursor-pointer"
+                                        style={{borderLeft: `4px solid ${roomColor}`}}
                                     >
                                         {isExpanded
-                                            ? <ChevronDown size={16} style={{color: 'var(--text-muted)', flexShrink: 0}}/>
-                                            : <ChevronRight size={16} style={{color: 'var(--text-muted)', flexShrink: 0}}/>
+                                            ? <ChevronDown size={16} className="text-(--text-muted) shrink-0"/>
+                                            : <ChevronRight size={16} className="text-(--text-muted) shrink-0"/>
                                         }
-                                        <span style={{flex: 1, fontWeight: 'bold', fontSize: '0.95rem'}}>
-                                            {group.name}
-                                        </span>
-                                        <span style={{
-                                            fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600',
-                                        }}>
+                                        <span className="flex-1 font-bold text-[0.95rem]">{group.name}</span>
+                                        <span className="text-[0.7rem] text-(--text-muted) font-semibold">
                                             {group.items.length} item{group.items.length !== 1 ? 's' : ''}
                                         </span>
                                         {issueCount > 0 && (
-                                            <span style={{
-                                                fontSize: '0.65rem', fontWeight: 'bold', padding: '2px 8px',
-                                                borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '3px',
-                                                backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444',
-                                            }}>
-                                                <AlertTriangle size={10}/>
-                                                {issueCount}
+                                            <span
+                                                className="flex items-center gap-1 text-[0.65rem] font-bold px-2 py-0.5 rounded-md bg-red-500/12 text-red-500">
+                                                <AlertTriangle size={10}/>{issueCount}
                                             </span>
                                         )}
                                     </div>
 
-                                    {/* Items table */}
                                     {isExpanded && (
-                                        <div style={{borderTop: '1px solid var(--panel-border)'}}>
+                                        <div className="border-t border-white/8">
                                             {group.items.map(item => {
-                                                const cs = getConditionStyle(item.condition);
+                                                const cs = getConditionClass(item.condition);
                                                 const sv = item.severity ? SEVERITY_STYLE[item.severity.toLowerCase()] : null;
-
                                                 return (
                                                     <div
                                                         key={item.id}
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '12px',
-                                                            padding: '10px 16px 10px 30px',
-                                                            borderBottom: '1px solid var(--panel-border)',
-                                                            fontSize: '0.85rem',
-                                                            transition: 'background 0.15s',
-                                                        }}
-                                                        className="hover-row"
+                                                        className="flex items-center gap-3 py-2.5 px-4 pl-7.5 border-b border-white/8 text-[0.85rem]"
                                                     >
-                                                        {/* Timestamp button */}
                                                         <button
                                                             onClick={() => handleSeekItem(item.elapsed_seconds)}
-                                                            style={{
-                                                                background: 'var(--primary-bg)',
-                                                                border: 'none',
-                                                                borderRadius: '8px',
-                                                                padding: '4px 8px',
-                                                                color: 'var(--primary)',
-                                                                fontFamily: 'monospace',
-                                                                fontSize: '0.7rem',
-                                                                fontWeight: 'bold',
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                flexShrink: 0,
-                                                            }}
-                                                            title="Seek to this timestamp"
+                                                            className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-mono text-[0.7rem] font-bold border-none cursor-pointer"
                                                         >
-                                                            <Play size={9} style={{fill: 'var(--primary)'}}/>
+                                                            <Play size={9} className="fill-blue-400"/>
                                                             {formatTime(item.elapsed_seconds)}
                                                         </button>
-
-                                                        {/* Item name + description */}
-                                                        <div style={{flex: 1, minWidth: 0}}>
-                                                            <span style={{fontWeight: 'bold', color: 'var(--foreground)'}}>
-                                                                {item.item_name}
-                                                            </span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <span
+                                                                className="font-bold text-foreground">{item.item_name}</span>
                                                             {item.description && (
-                                                                <span style={{
-                                                                    color: 'var(--text-muted)', marginLeft: '8px', fontSize: '0.75rem',
-                                                                }} className="truncate">
-                                                                    {item.description}
-                                                                </span>
+                                                                <span
+                                                                    className="text-(--text-muted) ml-2 text-xs">{item.description}</span>
                                                             )}
                                                         </div>
-
-                                                        {/* Severity */}
                                                         {sv && (
-                                                            <span style={{
-                                                                fontSize: '0.65rem', fontWeight: 'bold',
-                                                                padding: '2px 8px', borderRadius: '6px',
-                                                                backgroundColor: sv.bg, color: sv.color,
-                                                                flexShrink: 0,
-                                                            }}>
+                                                            <span
+                                                                className={`shrink-0 text-[0.65rem] font-bold px-2 py-0.5 rounded-md ${sv.bg} ${sv.text}`}>
                                                                 {item.severity}
                                                             </span>
                                                         )}
-
-                                                        {/* Condition badge */}
-                                                        <span style={{
-                                                            fontSize: '0.7rem', fontWeight: 'bold',
-                                                            padding: '3px 10px', borderRadius: '8px',
-                                                            backgroundColor: cs.bg, color: cs.color,
-                                                            flexShrink: 0,
-                                                        }}>
+                                                        <span
+                                                            className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
                                                             {item.condition}
                                                         </span>
                                                     </div>
@@ -677,115 +423,33 @@ export default function ReportPage() {
                     </div>
 
                     {/* Bottom actions */}
-                    <div style={{
-                        borderTop: '1px solid var(--panel-border)',
-                        paddingTop: '20px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                    }}>
-                        <div style={{display: 'flex', gap: '12px', width: '100%'}}>
-                            <button
-                                onClick={() => { if (!isSigned) setShowSignaturePad(true); }}
-                                disabled={isGenerating}
-                                style={{
-                                    flex: 1, padding: '14px',
-                                    backgroundColor: isSigned ? 'rgba(16,185,129,0.12)' : 'var(--panel-bg)',
-                                    color: isSigned ? '#10b981' : 'var(--foreground)',
-                                    border: isSigned ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--panel-border)',
-                                    borderRadius: '12px', fontSize: '0.95rem', fontWeight: 'bold',
-                                    cursor: isSigned ? 'default' : 'pointer',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                                    transition: 'var(--transition)',
-                                }}
-                            >
-                                {isSigned ? <><Check size={16}/> Signed</> : <><FileSignature size={16}/> Sign Report</>}
-                            </button>
-
-                            <button
-                                onClick={handleGeneratePDF}
-                                disabled={isGenerating || allItems.length === 0}
-                                style={{
-                                    flex: 1, padding: '14px', backgroundColor: 'var(--accent)', color: 'white',
-                                    border: 'none', borderRadius: '12px', fontSize: '0.95rem', fontWeight: 'bold',
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    gap: '8px', transition: 'var(--transition)',
-                                    boxShadow: '0 6px 20px rgba(99,102,241,0.2)',
-                                    opacity: allItems.length === 0 ? 0.4 : 1,
-                                }}
-                            >
-                                {isGenerating
-                                    ? <><Loader2 size={14} className="animate-spin"/> Generating...</>
-                                    : <><Play size={14} style={{fill: 'white'}}/> Generate PDF</>
-                                }
-                            </button>
-                        </div>
+                    <div className="flex gap-3 pt-5 border-t border-white/8">
+                        <button
+                            onClick={() => {
+                                if (!isSigned) setShowSignaturePad(true);
+                            }}
+                            disabled={isGenerating}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[0.95rem] font-bold transition-all
+                                ${isSigned
+                                ? 'bg-emerald-500/12 text-emerald-400 border border-emerald-500/30 cursor-default'
+                                : 'bg-(--panel-bg) text-foreground border border-white/8 cursor-pointer'
+                            }`}
+                        >
+                            {isSigned ? <><Check size={16}/> Signed</> : <><FileSignature size={16}/> Sign Report</>}
+                        </button>
+                        <button
+                            onClick={handleGeneratePDF}
+                            disabled={isGenerating || items.length === 0}
+                            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[0.95rem] font-bold text-white bg-indigo-500 border-none cursor-pointer shadow-[0_6px_20px_rgba(99,102,241,0.2)] disabled:opacity-40"
+                        >
+                            {isGenerating
+                                ? <><Loader2 size={14} className="animate-spin"/> Generating...</>
+                                : <><Play size={14} className="fill-white"/> Generate PDF</>
+                            }
+                        </button>
                     </div>
                 </section>
             </div>
-
-            {/* Toast */}
-            {showToast && (
-                <div style={{
-                    position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
-                    backgroundColor: 'rgba(16,185,129,0.9)', color: 'white', padding: '12px 24px',
-                    borderRadius: '12px', fontWeight: 'bold', fontSize: '0.85rem', zIndex: 1000,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                }}>
-                    {toastMessage}
-                </div>
-            )}
-
-            {/* Video Edit Dialog */}
-            <Dialog open={!!editingVideo} onOpenChange={(open) => { if (!open) setEditingVideo(null); }}>
-                <DialogContent className="sm:max-w-sm" style={{
-                    background: 'var(--background)', border: '1px solid var(--panel-border)',
-                    overflow: 'hidden',
-                }}>
-                    <DialogHeader>
-                        <DialogTitle>Edit Video</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col gap-4 py-2">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-semibold" style={{color: 'var(--text-muted)'}}>Title</label>
-                            <input
-                                type="text"
-                                value={editForm.title}
-                                onChange={e => setEditForm(prev => ({...prev, title: e.target.value}))}
-                                placeholder={editingVideo?.src?.split('/').pop() || 'Video title...'}
-                                className="w-full px-3 py-2 text-sm rounded-lg"
-                                style={{
-                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--panel-border)',
-                                    color: 'var(--foreground)', outline: 'none',
-                                }}
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-semibold" style={{color: 'var(--text-muted)'}}>Status</label>
-                            <select
-                                value={editForm.status}
-                                onChange={e => setEditForm(prev => ({...prev, status: e.target.value}))}
-                                className="w-full px-3 py-2 text-sm rounded-lg"
-                                style={{
-                                    background: 'rgba(255,255,255,0.05)', border: '1px solid var(--panel-border)',
-                                    color: 'var(--foreground)', outline: 'none',
-                                }}
-                            >
-                                <option value="draft">Draft</option>
-                                <option value="processing">Processing</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingVideo(null)}>Cancel</Button>
-                        <Button onClick={handleVideoSave} disabled={isVideoSaving}>
-                            {isVideoSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : <Save className="w-4 h-4 mr-1"/>}
-                            Save
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {showSignaturePad && (
                 <SignaturePad

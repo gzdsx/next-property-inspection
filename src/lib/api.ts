@@ -1,5 +1,7 @@
 import {auth} from "@/auth"; // 服务端获取 session
 import {getSession} from "next-auth/react"; // 客户端获取 session
+import {signOut} from "next-auth/react";
+import {redirect} from "next/navigation";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -72,16 +74,18 @@ export async function apiFetch(endpoint: string, {data, params, ...options}: Fet
         const response = await fetch(url, {
             ...options,
             headers: headers,
-            //credentials: 'include',
+            credentials: 'include',
         });
 
         // 4. 统一错误拦截
         if (response.status === 401) {
             // 处理未授权，例如跳转登录
-            if (typeof window !== 'undefined') window.location.href = '/login?callbackUrl=' + encodeURIComponent(window.location.pathname);
+            await signOut();
+            redirect('/');
         }
 
         if (!response.ok) {
+            console.error('response:',response);
             const errorData = await response.json();
             //console.log('response:',errorData);
             throw {
@@ -104,6 +108,7 @@ export async function apiFetch(endpoint: string, {data, params, ...options}: Fet
         const json = await response.json();
         return json.data;
     } catch (error) {
+        console.error('error:', error);
         return Promise.reject(error);
     }
 }

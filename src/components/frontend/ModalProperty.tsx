@@ -61,6 +61,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
             onClose();
         },
         onError: (error) => {
+            console.error(error);
             toast.error(error.message);
         }
     });

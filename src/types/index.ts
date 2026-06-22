@@ -44,6 +44,10 @@ export type Inspection = {
     views: number;
     room_images: any[];
     pdf_url: string;
+    video_url: string;
+    video_status: string;
+    video_size: number;
+    video_type: string;
     created_at: string;
     updated_at: string;
     [key: string]: any;
@@ -51,10 +55,9 @@ export type Inspection = {
 
 export type InspectionVideo = {
     id: number;
-    title: string;
     src: string;
-    mime_type: string;
     status: string;
+    chunk_index: number;
     created_at: string;
     updated_at: string;
     [key: string]: any;

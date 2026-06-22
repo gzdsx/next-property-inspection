@@ -1,37 +1,36 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
-import {useParams} from 'next/navigation';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {useParams, useRouter} from 'next/navigation';
 import Link from 'next/link';
+import {useSortable} from '@dnd-kit/react/sortable';
 import {
     ChevronLeft, Save, Upload, FileVideo, X, Loader2,
     CheckCircle2, AlertCircle, MapPin, FileText, Play,
     Trash2, StopCircle, RotateCcw, Sparkles, Video,
+    GripVertical,
 } from 'lucide-react';
-import {apiDelete, apiGet, apiPost, apiPut} from '@/lib/api';
+import {apiGet, apiPost, apiPut} from '@/lib/api';
 import {toast} from 'sonner';
-import type {Inspection, InspectionVideo} from '@/types';
+import type {Inspection} from '@/types';
 import {
     useVideoUploadQueue,
     formatFileSize,
     type UploadFileItem,
     type UploadFileStatus,
 } from '@/hooks/useVideoUploadQueue';
-import {useConfirm} from "@/contexts/AppContext";
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import SortableProvider from '@/components/common/SortableProvider';
 
 export default function InspectionEditPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params.id as string;
-    const confirm = useConfirm();
 
     const [inspection, setInspection] = useState<Inspection | null>(null);
-    const [videos, setVideos] = useState<InspectionVideo[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isMerging, setIsMerging] = useState(false);
     const [notes, setNotes] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +40,7 @@ export default function InspectionEditPage() {
         addFiles,
         removeFile,
         retryFile,
-        clearCompleted,
+        reorderFiles,
         clearAll,
         startUpload,
         abortAll,
@@ -56,14 +55,12 @@ export default function InspectionEditPage() {
         maxConcurrentFiles: 5,
         maxConcurrentChunks: 3,
         saveDir: 'videos',
-        autoRemoveCompleted: true,
-        onFileCompleted: async (_item, serverUrl) => {
-            const newVideo = await apiPost(`/inspections/${id}/videos`, {
-                src: serverUrl,
-                mime_type: _item.file.type,
-                status: 'draft'
+        onFileCompleted: (file, videoData) => {
+            apiPost(`/inspections/${id}/videos`, {
+                src: videoData.path,
+                chunk_index: file.chunk_index,
+                status: 'pending'
             });
-            setVideos(prev => [...prev, newVideo]);
         },
     });
 
@@ -75,7 +72,7 @@ export default function InspectionEditPage() {
             try {
                 const response = await apiGet(`/inspections/${id}`);
                 setInspection(response);
-                setVideos(response.videos || []);
+                setNotes(response.subtext || '');
             } catch (err: any) {
                 toast.error(err.message || 'Failed to load inspection');
             } finally {
@@ -84,23 +81,37 @@ export default function InspectionEditPage() {
         })();
     }, [id]);
 
-    // ─── Delete a video ───────────────────────────────────────────────────────
+    // ─── After all uploads complete → merge ───────────────────────────────────
 
-    const handleDeleteVideo = async (videoId: number) => {
-        confirm.open({
-            title: 'Delete Video',
-            message: 'Are you sure you want to delete this video?',
-            onConfirm: async () => {
-                try {
-                    await apiDelete(`/inspections/${id}/videos/${videoId}`);
-                    setVideos(prev => prev.filter(v => v.id !== videoId));
-                    toast.success('Video removed');
-                } catch (err: any) {
-                    toast.error(err.message || 'Failed to delete video');
-                }
-            },
-        })
-    };
+    const allUploaded = hasFiles && uploadFiles.length > 0
+        && uploadFiles.every(f => f.status === 'completed' || f.status === 'error')
+        && uploadFiles.some(f => f.status === 'completed');
+    const completedFiles = uploadFiles.filter(f => f.status === 'completed' && f.url);
+
+    const mergeVideo = async () => {
+        try {
+            setIsMerging(true);
+            const videoSources = completedFiles.map(f => ({
+                src: f.url!,
+                mime_type: f.file.type,
+            }));
+
+            await apiPost(`/inspections/${id}/videos/merge`, {videos: videoSources});
+
+            clearAll();
+            toast.success('Videos merged successfully');
+            router.push(`/report/${id}`);
+        } catch (err: any) {
+            toast.error(err.message || 'Video merge failed');
+        }finally {
+            setIsMerging(false);
+        }
+    }
+
+    useEffect(() => {
+        if (!allUploaded || isMerging || !completedFiles.length) return;
+        mergeVideo();
+    }, [allUploaded]);
 
     // ─── Save inspection ──────────────────────────────────────────────────────
 
@@ -116,21 +127,7 @@ export default function InspectionEditPage() {
         }
     };
 
-    // ─── Trigger AI analysis ──────────────────────────────────────────────────
-
-    const handleAnalyze = async () => {
-        setIsAnalyzing(true);
-        try {
-            await apiPost(`/inspections/${id}/analyze`);
-            toast.success('AI analysis started in background');
-        } catch (err: any) {
-            toast.error(err.message || 'Failed to start analysis');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    // ─── File drop handler ────────────────────────────────────────────────────
+    // ─── Drag & drop files ────────────────────────────────────────────────────
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -138,12 +135,66 @@ export default function InspectionEditPage() {
         addFiles(e.dataTransfer.files);
     };
 
+    const handleSortEnd = useCallback((oldIndex: number, newIndex: number) => {
+        reorderFiles(oldIndex, newIndex);
+    }, [reorderFiles]);
+
+    const canReorder = !isUploading && pendingCount > 0;
+
     // ─── Render ───────────────────────────────────────────────────────────────
 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin" style={{color: 'var(--primary)'}}/>
+            </div>
+        );
+    }
+
+    // Fullscreen merge spinner
+    if (isMerging) {
+        return (
+            <div style={{
+                position: 'fixed', inset: 0, zIndex: 9999,
+                background: 'rgba(11,15,25,0.95)', backdropFilter: 'blur(20px)',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: '24px',
+            }}>
+                <div style={{position: 'relative', width: '80px', height: '80px'}}>
+                    <Loader2
+                        className="animate-spin"
+                        style={{width: '80px', height: '80px', color: 'var(--primary)'}}
+                    />
+                </div>
+                <div style={{textAlign: 'center'}}>
+                    <h2 style={{
+                        fontSize: '1.5rem', fontWeight: '900', color: 'var(--foreground)',
+                        letterSpacing: '-0.5px', marginBottom: '8px',
+                    }}>
+                        Merging Videos...
+                    </h2>
+                    <p style={{fontSize: '0.9rem', color: 'var(--text-muted)', maxWidth: '360px', lineHeight: '1.6'}}>
+                        The server is combining {completedCount} video{completedCount !== 1 ? 's' : ''} into a single
+                        walkthrough.
+                        This may take a few minutes.
+                    </p>
+                </div>
+                <div style={{
+                    width: '200px', height: '4px', borderRadius: '2px',
+                    background: 'rgba(255,255,255,0.08)', overflow: 'hidden',
+                }}>
+                    <div style={{
+                        width: '40%', height: '100%', borderRadius: '2px',
+                        background: 'linear-gradient(90deg, var(--primary), var(--accent))',
+                        animation: 'mergeProgress 1.5s ease-in-out infinite',
+                    }}/>
+                </div>
+                <style>{`
+                    @keyframes mergeProgress {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(350%); }
+                    }
+                `}</style>
             </div>
         );
     }
@@ -172,20 +223,6 @@ export default function InspectionEditPage() {
                 </div>
 
                 <div className="flex gap-3">
-                    <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing || videos.length === 0}
-                        className="glass-panel flex items-center gap-2 px-5 py-2.5 font-bold text-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{
-                            border: '1px solid var(--panel-border)',
-                            borderRadius: '12px',
-                            color: isAnalyzing ? 'var(--text-muted)' : 'var(--accent)',
-                        }}
-                    >
-                        {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4"/>}
-                        {isAnalyzing ? 'Analyzing...' : 'AI Analysis'}
-                    </button>
-
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
@@ -244,32 +281,18 @@ export default function InspectionEditPage() {
                         <div>
                             <h2 className="text-base font-bold flex items-center gap-2">
                                 <Video className="w-4 h-4" style={{color: 'var(--primary)'}}/>
-                                Walkthrough Videos
+                                Upload Videos
                             </h2>
                             <p className="text-xs mt-1" style={{color: 'var(--text-muted)'}}>
-                                {videos.length} video{videos.length !== 1 ? 's' : ''} attached
-                                {hasFiles && ` · ${uploadFiles.length} in upload queue`}
+                                {hasFiles
+                                    ? `${uploadFiles.length} video${uploadFiles.length > 1 ? 's' : ''} · drag to reorder · upload then merge`
+                                    : 'Add videos to upload and merge into a single walkthrough'
+                                }
                             </p>
                         </div>
 
-                        {/* Upload controls */}
                         {hasFiles && (
                             <div className="flex items-center gap-2">
-                                {completedCount > 0 && (
-                                    <button
-                                        onClick={clearCompleted}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold cursor-pointer"
-                                        style={{
-                                            background: 'rgba(255,255,255,0.05)',
-                                            border: '1px solid var(--panel-border)',
-                                            borderRadius: '8px',
-                                            color: 'var(--text-muted)',
-                                        }}
-                                    >
-                                        <Trash2 className="w-3 h-3"/>
-                                        Clear Done
-                                    </button>
-                                )}
                                 {isUploading ? (
                                     <button
                                         onClick={abortAll}
@@ -285,82 +308,90 @@ export default function InspectionEditPage() {
                                         Stop All
                                     </button>
                                 ) : (
-                                    pendingCount > 0 && (
+                                    <>
                                         <button
-                                            onClick={startUpload}
-                                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white cursor-pointer"
+                                            onClick={clearAll}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold cursor-pointer"
                                             style={{
-                                                backgroundColor: 'var(--primary)',
-                                                border: 'none',
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid var(--panel-border)',
                                                 borderRadius: '8px',
+                                                color: 'var(--text-muted)',
                                             }}
                                         >
-                                            <Play className="w-3.5 h-3.5"/>
-                                            Upload {pendingCount} Video{pendingCount > 1 ? 's' : ''}
+                                            <Trash2 className="w-3 h-3"/>
+                                            Clear All
                                         </button>
-                                    )
+                                        {pendingCount > 0 && (
+                                            <button
+                                                onClick={startUpload}
+                                                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white cursor-pointer"
+                                                style={{
+                                                    backgroundColor: 'var(--primary)',
+                                                    border: 'none',
+                                                    borderRadius: '8px',
+                                                }}
+                                            >
+                                                <Play className="w-3.5 h-3.5"/>
+                                                Upload & Merge ({pendingCount})
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
                     </div>
 
-                    <div className="p-4 flex flex-col gap-2">
-                        {/* ── Existing videos (green tint) ──────────────── */}
-                        {videos.map(video => (
-                            <div key={video.id} className="flex items-center gap-4 p-4"
-                                 style={{
-                                     background: 'rgba(16,185,129,0.04)',
-                                     borderRadius: '12px',
-                                     border: '1px solid rgba(16,185,129,0.15)',
-                                 }}>
-                                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                                     style={{backgroundColor: 'var(--success-bg)'}}>
-                                    <CheckCircle2 className="w-5 h-5" style={{color: 'var(--success)'}}/>
+                    <div className="p-4">
+                        {/* ── Sortable upload queue ─────────────────────────── */}
+                        {hasFiles && (
+                            <div className="flex flex-col gap-2">
+                                <SortableProvider onSortEnd={handleSortEnd}>
+                                    {uploadFiles.map((item, index) => (
+                                        <SortableFileRow
+                                            key={item.id}
+                                            item={item}
+                                            index={index}
+                                            canDrag={canReorder}
+                                            onRemove={() => removeFile(item.id)}
+                                            onRetry={() => retryFile(item.id)}
+                                        />
+                                    ))}
+                                </SortableProvider>
+
+                                {/* Summary */}
+                                <div className="flex items-center justify-between px-2 pt-2"
+                                     style={{borderTop: '1px solid var(--panel-border)', marginTop: '4px'}}>
+                                    <span className="text-xs" style={{color: 'var(--text-dark)'}}>
+                                        {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} ({formatFileSize(totalSize)})
+                                    </span>
+                                    <div className="flex gap-3">
+                                        {activeCount > 0 && (
+                                            <span className="text-xs" style={{color: 'var(--primary)'}}>
+                                                {activeCount} uploading
+                                            </span>
+                                        )}
+                                        {pendingCount > 0 && (
+                                            <span className="text-xs" style={{color: 'var(--text-dark)'}}>
+                                                {pendingCount} pending
+                                            </span>
+                                        )}
+                                        {completedCount > 0 && (
+                                            <span className="text-xs" style={{color: 'var(--success)'}}>
+                                                {completedCount} done
+                                            </span>
+                                        )}
+                                        {errorCount > 0 && (
+                                            <span className="text-xs" style={{color: 'var(--danger)'}}>
+                                                {errorCount} failed
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold truncate"
-                                       style={{color: 'var(--foreground)'}}>
-                                        {video.src?.split('/').pop() || `Video #${video.id}`}
-                                    </p>
-                                    <p className="text-xs mt-0.5" style={{color: 'var(--text-muted)'}}>
-                                        {video.mime_type} · {new Date(video.created_at).toLocaleDateString()}
-                                    </p>
-                                </div>
-                                <span
-                                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                                    style={{
-                                        backgroundColor: video.status === 'completed' ? 'var(--success-bg)' : 'var(--warning-bg)',
-                                        color: video.status === 'completed' ? 'var(--success)' : 'var(--warning)',
-                                    }}
-                                >
-                                    {video.status || 'uploaded'}
-                                </span>
-                                <button
-                                    onClick={() => handleDeleteVideo(video.id)}
-                                    className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer shrink-0"
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: 'var(--text-dark)',
-                                    }}
-                                    title="Remove video"
-                                >
-                                    <X className="w-4 h-4"/>
-                                </button>
                             </div>
-                        ))}
+                        )}
 
-                        {/* ── Upload queue ──────────────────────────────────── */}
-                        {uploadFiles.map(item => (
-                            <UploadFileRow
-                                key={item.id}
-                                item={item}
-                                onRemove={() => removeFile(item.id)}
-                                onRetry={() => retryFile(item.id)}
-                            />
-                        ))}
-
-                        {/* ── Drop zone (only when queue is empty) ─────────── */}
+                        {/* ── Drop zone (when no files) ────────────────────── */}
                         {!hasFiles && (
                             <>
                                 <input
@@ -382,7 +413,7 @@ export default function InspectionEditPage() {
                                     }}
                                     onDragLeave={() => setIsDragOver(false)}
                                     onDrop={handleDrop}
-                                    className="cursor-pointer flex flex-col items-center justify-center p-10 transition-all mt-1"
+                                    className="cursor-pointer flex flex-col items-center justify-center p-10 transition-all"
                                     style={{
                                         border: `2px dashed ${isDragOver ? 'var(--primary)' : 'var(--panel-border)'}`,
                                         borderRadius: '16px',
@@ -402,42 +433,10 @@ export default function InspectionEditPage() {
                                         {isDragOver ? 'Drop videos here' : 'Click or drag videos to upload'}
                                     </p>
                                     <p className="text-xs mt-1" style={{color: 'var(--text-dark)'}}>
-                                        MP4, WebM, MOV · max 5 concurrent uploads · chunked transfer
+                                        MP4, WebM, MOV · drag to reorder · auto-merge after upload
                                     </p>
                                 </div>
                             </>
-                        )}
-
-                        {/* ── Summary bar (when queue has files) ────────────── */}
-                        {hasFiles && (
-                            <div className="flex items-center justify-between px-2 pt-2"
-                                 style={{borderTop: '1px solid var(--panel-border)', marginTop: '4px'}}>
-                                <span className="text-xs" style={{color: 'var(--text-dark)'}}>
-                                    {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} ({formatFileSize(totalSize)})
-                                </span>
-                                <div className="flex gap-3">
-                                    {activeCount > 0 && (
-                                        <span className="text-xs" style={{color: 'var(--primary)'}}>
-                                            {activeCount} uploading
-                                        </span>
-                                    )}
-                                    {pendingCount > 0 && (
-                                        <span className="text-xs" style={{color: 'var(--text-dark)'}}>
-                                            {pendingCount} pending
-                                        </span>
-                                    )}
-                                    {completedCount > 0 && (
-                                        <span className="text-xs" style={{color: 'var(--success)'}}>
-                                            {completedCount} done
-                                        </span>
-                                    )}
-                                    {errorCount > 0 && (
-                                        <span className="text-xs" style={{color: 'var(--danger)'}}>
-                                            {errorCount} failed
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
                         )}
                     </div>
                 </div>
@@ -448,14 +447,10 @@ export default function InspectionEditPage() {
     );
 }
 
-// ─── Upload File Row ──────────────────────────────────────────────────────────
+// ─── Sortable File Row ────────────────────────────────────────────────────────
 
 const STATUS_MAP: Record<UploadFileStatus, {
-    label: string;
-    colorVar: string;
-    bgVar: string;
-    Icon: typeof Loader2;
-    spin: boolean;
+    label: string; colorVar: string; bgVar: string; Icon: typeof Loader2; spin: boolean;
 }> = {
     pending: {label: 'Pending', colorVar: '--text-muted', bgVar: '--panel-border', Icon: FileVideo, spin: false},
     uploading: {label: 'Uploading', colorVar: '--primary', bgVar: '--primary-bg', Icon: Loader2, spin: true},
@@ -465,28 +460,63 @@ const STATUS_MAP: Record<UploadFileStatus, {
     error: {label: 'Failed', colorVar: '--danger', bgVar: '--danger-bg', Icon: AlertCircle, spin: false},
 };
 
-function UploadFileRow({item, onRemove, onRetry}: {
+function SortableFileRow({item, index, canDrag, onRemove, onRetry}: {
     item: UploadFileItem;
+    index: number;
+    canDrag: boolean;
     onRemove: () => void;
     onRetry: () => void;
 }) {
+    const {ref, isDragging} = useSortable({
+        id: item.id,
+        index,
+        disabled: !canDrag,
+        transition: {duration: 250, easing: 'ease'},
+    });
+
     const cfg = STATUS_MAP[item.status];
     const Icon = cfg.Icon;
     const isActive = item.status === 'uploading' || item.status === 'merging' || item.status === 'saving';
     const label = isActive && item.status === 'uploading' ? `${item.progress}%` : cfg.label;
 
     return (
-        <div className="flex items-center gap-4 p-4 transition-colors"
-             style={{
-                 background: isActive ? 'rgba(59,130,246,0.04)' : 'rgba(99,102,241,0.03)',
-                 borderRadius: '12px',
-                 border: `1px solid ${isActive ? 'rgba(59,130,246,0.25)' : 'rgba(99,102,241,0.12)'}`,
-             }}>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                 style={{backgroundColor: `var(${cfg.bgVar})`}}>
-                <FileVideo className="w-5 h-5" style={{color: `var(${cfg.colorVar})`}}/>
+        <div
+            ref={ref}
+            className="flex items-center gap-3 p-4 transition-all"
+            style={{
+                background: isDragging ? 'rgba(59,130,246,0.08)' : isActive ? 'rgba(59,130,246,0.04)' : 'rgba(99,102,241,0.03)',
+                borderRadius: '12px',
+                border: `1px solid ${isDragging ? 'var(--primary)' : isActive ? 'rgba(59,130,246,0.25)' : 'rgba(99,102,241,0.12)'}`,
+                opacity: isDragging ? 0.7 : 1,
+                cursor: canDrag ? 'grab' : 'default',
+            }}
+        >
+            {/* Drag handle */}
+            <div style={{
+                color: canDrag ? 'var(--text-muted)' : 'var(--panel-border)',
+                flexShrink: 0,
+            }}>
+                <GripVertical className="w-4 h-4"/>
             </div>
 
+            {/* Order number */}
+            <div style={{
+                width: '24px', height: '24px', borderRadius: '6px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 'bold',
+                flexShrink: 0,
+            }}>
+                {index + 1}
+            </div>
+
+            {/* Icon */}
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                 style={{backgroundColor: `var(${cfg.bgVar})`}}>
+                <FileVideo className="w-4 h-4" style={{color: `var(${cfg.colorVar})`}}/>
+            </div>
+
+            {/* File info */}
             <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate" style={{color: 'var(--foreground)'}}>
                     {item.file.name}
@@ -513,6 +543,7 @@ function UploadFileRow({item, onRemove, onRetry}: {
                 )}
             </div>
 
+            {/* Status + actions */}
             <div className="flex items-center gap-2 shrink-0">
                 <span
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -523,22 +554,17 @@ function UploadFileRow({item, onRemove, onRetry}: {
                 </span>
 
                 {item.status === 'error' && (
-                    <button
-                        onClick={onRetry}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
-                        style={{background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--primary)'}}
-                        title="Retry"
-                    >
+                    <button onClick={onRetry}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
+                            style={{background: 'rgba(255,255,255,0.05)', border: 'none', color: 'var(--primary)'}}>
                         <RotateCcw className="w-3.5 h-3.5"/>
                     </button>
                 )}
 
-                {(item.status === 'pending' || item.status === 'completed' || item.status === 'error') && (
-                    <button
-                        onClick={onRemove}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
-                        style={{background: 'transparent', border: 'none', color: 'var(--text-dark)'}}
-                    >
+                {(item.status === 'pending' || item.status === 'error') && (
+                    <button onClick={onRemove}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
+                            style={{background: 'transparent', border: 'none', color: 'var(--text-dark)'}}>
                         <X className="w-4 h-4"/>
                     </button>
                 )}

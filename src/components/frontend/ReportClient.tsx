@@ -16,6 +16,7 @@ const ReportClient = () => {
         isFetching: isInspectionFetching,
         refetch: refetchInspections
     } = useInspectionsQuery({limit: 5});
+
     const {mutate: deleteInspection} = useDeleteInspectionMutation({
         onMutate: () => {
             spinner.show();

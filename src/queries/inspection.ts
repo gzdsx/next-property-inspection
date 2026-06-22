@@ -6,7 +6,8 @@ export function useInspectionQuery(id: number | string) {
     return useQuery({
         queryKey: ['inspection', id],
         queryFn: () => apiGet(`/inspections/${id}`),
-        initialData: {}
+        initialData: {},
+        enabled: !!id
     });
 }
 

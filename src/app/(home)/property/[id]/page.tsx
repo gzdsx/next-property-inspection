@@ -12,9 +12,9 @@ import {
     Pencil,
     Wrench
 } from "lucide-react";
+import {toast} from "sonner";
 import ModalProperty from "@/components/frontend/ModalProperty";
 import {useSpinner} from "@/contexts/AppContext";
-import {toast} from "sonner";
 import InspectionGrid from "@/components/frontend/InspectionGrid";
 import {usePropertyQuery} from "@/queries/property";
 import {useCreateInspectionMutation, useInspectionsQuery} from "@/queries/inspection";
@@ -47,7 +47,7 @@ export default function PropertyDetailPage() {
     })
 
 
-    const handleAddInspection = (type: "routine" | "move-in" | "move-out" | "maintenance" | "other") => {
+    const handleAddInspection = (type: "routine" | "movein" | "moveout" | "maintenance" | "other") => {
         createInspection({
             type: type || 'routine',
             property_id: id,
@@ -154,11 +154,11 @@ export default function PropertyDetailPage() {
                         <ClipboardList size={20}/>
                         <span>Routine</span>
                     </button>
-                    <button className="float-btn" onClick={() => handleAddInspection("move-in")}>
+                    <button className="float-btn" onClick={() => handleAddInspection("movein")}>
                         <LogIn size={20}/>
                         <span>Move In</span>
                     </button>
-                    <button className="float-btn" onClick={() => handleAddInspection("move-out")}>
+                    <button className="float-btn" onClick={() => handleAddInspection("moveout")}>
                         <LogOut size={20}/>
                         <span>Move Out</span>
                     </button>

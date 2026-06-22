@@ -5,6 +5,8 @@ import {Trash2} from "lucide-react";
 import {type Property} from "@/types";
 import {useConfirm, useSpinner} from "@/contexts/AppContext";
 import {apiDelete} from "@/lib/api";
+import {useDeletePropertyMutation} from "@/queries/property";
+import {useQueryClient} from "@tanstack/react-query";
 
 interface PropertyCardProps {
     property: Property;
@@ -14,21 +16,29 @@ interface PropertyCardProps {
 const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
     const confirm = useConfirm();
     const spinner = useSpinner();
+    const queryClient = useQueryClient();
+
+    const {mutate: deleteProperty} = useDeletePropertyMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onError: (error) => {
+            console.error(error);
+        },
+        onSettled: () => {
+            spinner.hide();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({queryKey: ['properties', 'home']});
+            onDelete?.(property);
+        }
+    })
     const handleDeleteProperty = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         confirm.open({
             title: "Delete Property",
             message: "Are you sure you want to delete this property?",
-            onConfirm: () => {
-                spinner.show();
-                apiDelete(`/properties/${property.id}`).then(response => {
-                    onDelete?.(property);
-                }).catch(reason => {
-
-                }).finally(() => {
-                    spinner.hide();
-                })
-            }
+            onConfirm: () => deleteProperty(property.id as any)
         });
     }
     return (
@@ -36,11 +46,11 @@ const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
             <div className="property-image-wrapper" style={{height: "160px"}}>
                 <Link href={`/property/${property.id}`}>
                     <img
-                        src={property.image}
-                        alt={property.name}
+                        src={property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80"}
+                        alt={'Property Cover'}
                         className="property-image"
                         onError={(e) => {
-                            e.currentTarget.src = "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80";
+                            e.currentTarget.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80";
                         }}
                     />
                 </Link>

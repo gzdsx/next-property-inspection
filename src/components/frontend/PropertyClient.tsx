@@ -32,18 +32,16 @@ const PropertyClient = () => {
         setFilterTime('');
     };
 
-    const {data: serverData, isLoading, refetch} = useQuery({
+    const {data: serverData, isFetching, refetch} = useQuery({
         queryKey: ['properties', 'home'],
         queryFn: () => apiGet(`/properties`, {limit: 5})
     });
 
-    console.log(properties);
-
     useEffect(() => {
-        if (!isLoading && serverData) {
+        if (!isFetching && serverData) {
             setProperties(serverData.items);
         }
-    }, [isLoading, serverData]);
+    }, [isFetching, serverData]);
 
     return (
         <section>
@@ -254,7 +252,7 @@ const PropertyClient = () => {
                     </div>
                 </div>
             )}
-            <PropertyGrid properties={properties} onDelete={() => refetch()}/>
+            <PropertyGrid properties={properties}/>
         </section>
     );
 };

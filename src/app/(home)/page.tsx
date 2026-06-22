@@ -169,16 +169,6 @@ export default function Home() {
                     }}
                 />
             )}
-
-            {/* ── ORGANISATION SETTINGS OVERLAY ─────────────────────────────────── */}
-            {isSettingsOpen && (
-                <ModalSettings
-                    onClose={() => setIsSettingsOpen(false)}
-                    onSave={() => {
-                        setIsSettingsOpen(false);
-                    }}
-                />
-            )}
         </>
     );
 }
