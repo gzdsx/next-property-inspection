@@ -705,7 +705,7 @@ export function useGeminiLive() {
             await new Promise(resolve => setTimeout(resolve, 500));
         }
 
-        if (recordedChunksRef.current.length === 0) return;
+        //if (recordedChunksRef.current.length === 0) return;
         setIsUploading(true);
         addLog('Uploading video and records to server...');
 
@@ -724,9 +724,10 @@ export function useGeminiLive() {
             formData.append('video_status', 'draft');
 
             await apiPut(`/inspections/${inspectionId}`, formData);
-            await apiPost(`/inspections/${inspectionId}/items/batch`, recordsRef.current);
+            await apiPost(`/inspections/${inspectionId}/items/batch`, {records: recordsRef.current});
 
             setUploadReportId(inspectionId);
+            recordedChunksRef.current = []; // Clear video chunks
             addLog('Upload successful! Report ID: ' + inspectionId);
 
             // ✅ 上传成功后：清空 localStorage 中的巡检记录，防止下次打开 App 时
@@ -740,7 +741,6 @@ export function useGeminiLive() {
             // ❌ 上传失败时：不清除记录，保留在 localStorage，确保下次打开时可以恢复继续。
         } finally {
             setIsUploading(false);
-            recordedChunksRef.current = []; // Clear video chunks
         }
     };
 
