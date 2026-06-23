@@ -247,7 +247,7 @@ const PropertyClient = () => {
                     </div>
                 </div>
             )}
-            <PropertyGrid properties={properties}/>
+            <PropertyGrid properties={properties} onDelete={() => refetch()}/>
         </section>
     );
 };

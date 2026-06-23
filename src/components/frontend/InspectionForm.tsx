@@ -133,8 +133,11 @@ const InspectionForm = () => {
 
             await apiPost(`/inspections/${inspectionData.id}/analyze`);
             setOfflineStatusStep(3);
-            setAnalysisFinished(true);
-            setShowBackgroundModal(true);
+            setTimeout(() => {
+                setOfflineStatusStep(0);
+                setAnalysisFinished(true);
+                setShowBackgroundModal(true);
+            }, 2000);
         } catch (err: any) {
             console.error(err);
             setOfflineError(err.message || 'Error uploading video file. Please try again.');
@@ -181,6 +184,7 @@ const InspectionForm = () => {
 
     useEffect(() => {
         if (currentProperty) {
+            updateReport({propertyAddress: currentProperty.name});
             if (!safeReport.propertyCoverImage) updateReport({propertyCoverImage: currentProperty.image});
             if (autocompleteRef.current) autocompleteRef.current.value = currentProperty.name || '';
         }
@@ -691,7 +695,8 @@ const InspectionForm = () => {
                             <button
                                 onClick={() => {
                                     setAnalysisFinished(false);
-
+                                    setOfflineStatusStep(0);
+                                    window.location.reload();
                                 }}
                                 className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl transition-colors shadow-lg shadow-blue-500/20 active:scale-95"
                             >
