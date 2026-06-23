@@ -1,10 +1,9 @@
 'use client';
 
 import {useEffect, useState} from "react";
-import {apiGet} from "@/lib/api";
 import PropertyGrid from "@/components/frontend/PropertyGrid";
 import {SlidersHorizontal} from "lucide-react";
-import {useQuery} from "@tanstack/react-query";
+import {usePropertyListQuery} from "@/queries/property";
 
 const PropertyClient = () => {
     const [properties, setProperties] = useState([]);
@@ -31,11 +30,7 @@ const PropertyClient = () => {
         setFilterHallway('');
         setFilterTime('');
     };
-
-    const {data: serverData, isFetching, refetch} = useQuery({
-        queryKey: ['properties', 'home'],
-        queryFn: () => apiGet(`/properties`, {limit: 5})
-    });
+    const {data: serverData, isFetching, refetch} = usePropertyListQuery({limit: 5});
 
     useEffect(() => {
         if (!isFetching && serverData) {

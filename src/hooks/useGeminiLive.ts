@@ -19,6 +19,7 @@ export interface InspectionRecord {
     elapsedSeconds?: number; // 相对于视频开始录制经过的秒数，用于在后台与视频时间轴同步
     photoBase64?: string;   // 记录瞬间抓取的高清截图（Base64格式）
     isManualFlag?: boolean; // 是否是用户手动点击🚩标记的高危记录
+    elapsed_seconds?: number;
 }
 
 /**
@@ -473,6 +474,7 @@ export function useGeminiLive() {
                                         condition: args.condition,
                                         severity: args.severity,
                                         timestamp: new Date(),
+                                        elapsed_seconds: elapsedSeconds,
                                         elapsedSeconds,
                                         photoBase64,
                                         isManualFlag,

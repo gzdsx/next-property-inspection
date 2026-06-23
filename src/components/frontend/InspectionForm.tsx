@@ -93,7 +93,15 @@ const InspectionForm = () => {
 
     // ── Offline Video Upload & Analysis ─────────────────────────────────────
     const handleOfflineUpload = async () => {
-        const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, floorplanImages} = safeReport;
+        const {
+            propertyId,
+            propertyCoverImage,
+            propertyAddress,
+            notes,
+            pdfFile,
+            videoFile,
+            floorplanImages
+        } = safeReport;
         if (!safeReport.videoFile) {
             alert(language === 'zh' ? '请先选择视频文件' : 'Please select a video file first');
             return;
@@ -114,6 +122,7 @@ const InspectionForm = () => {
             formData.append('video_url', videoData.path);
             formData.append('video_type', safeReport.videoFile.type);
             formData.append('video_status', 'draft');
+            formData.append('is_new', '1');
             if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('property_address', propertyAddress);
             if (propertyCoverImage) formData.append('image', propertyCoverImage);
@@ -616,7 +625,7 @@ const InspectionForm = () => {
                 )
             }
 
-            {offlineStatusStep > 0 && (
+            {(offlineStatusStep > 0 && !analysisFinished) && (
                 <div
                     className="fixed inset-0 z-200 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
                     <div

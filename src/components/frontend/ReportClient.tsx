@@ -15,7 +15,7 @@ const ReportClient = () => {
         data: inspectionData,
         isFetching: isInspectionFetching,
         refetch: refetchInspections
-    } = useInspectionListQuery({limit: 5});
+    } = useInspectionListQuery({limit: 5, is_new: 1});
 
     const {mutate: deleteInspection} = useDeleteInspectionMutation({
         onMutate: () => {
