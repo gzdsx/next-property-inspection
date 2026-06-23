@@ -8,7 +8,7 @@ import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
 import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
-    AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers,
+    AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers, Camera,
 } from 'lucide-react';
 import ReactPlayer from 'react-player';
 import type {Inspection, InspectionItem} from '@/types';
@@ -16,10 +16,13 @@ import {useTranslations} from "@/contexts/LocaleContext";
 import {capitalize} from "@/lib/utils";
 import {apiPost, apiPut, apiDelete} from "@/lib/api";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/components/ui/dialog";
+import {Button} from "@/components/ui/button";
 import {toast} from 'sonner';
 import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspection";
 import dayjs from "dayjs";
 import {useSpinner} from "@/contexts/AppContext";
+import {useCreateMaterialMutation} from "@/queries/material";
 
 const CONDITION_STYLE: Record<string, { bg: string; text: string }> = {
     'new item': {bg: 'bg-emerald-500/15', text: 'text-emerald-400'},
@@ -92,6 +95,9 @@ export default function ReportPage() {
         severity: '',
         elapsed_seconds: 0
     });
+    const [renamingRoom, setRenamingRoom] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState('');
+    const [isRenaming, setIsRenaming] = useState(false);
     const intervalRef = useRef<any>(null);
 
     const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
@@ -101,6 +107,10 @@ export default function ReportPage() {
         },
         onSuccess: () => {
             setIsSigned(true);
+            if (isCapturing) {
+                setIsCapturing(false);
+                toast.success('Cover image saved');
+            }
         },
         onError: () => {
 
@@ -108,7 +118,19 @@ export default function ReportPage() {
         onSettled: () => {
             spinner.hide();
         }
-    })
+    });
+
+    const {mutate: uploadCover} = useCreateMaterialMutation({
+        onMutate: () => {
+            spinner.show();
+        },
+        onSuccess: (data: any) => {
+            updateInspection({id, data: {image: data.src}} as any);
+        },
+        onError: () => {
+            toast.error('Failed to upload cover image');
+        }
+    });
 
     useEffect(() => {
         if (!isFetching && serverData) {
@@ -288,6 +310,77 @@ export default function ReportPage() {
         startEditItem(newItem);
     };
 
+    // ─── Room rename ──────────────────────────────────────────────────────────
+
+    const openRenameRoom = (roomName: string) => {
+        setRenamingRoom(roomName);
+        setRenameValue(roomName);
+    };
+
+    const handleRenameRoom = async () => {
+        if (!renamingRoom || !renameValue.trim() || renameValue === renamingRoom) {
+            setRenamingRoom(null);
+            return;
+        }
+        setIsRenaming(true);
+        try {
+            await apiPost(`/inspections/${id}/items/rename-room`, {
+                old_name: renamingRoom,
+                new_name: renameValue.trim(),
+            });
+            setItems(prev => prev.map(i =>
+                i.room_name === renamingRoom ? {...i, room_name: renameValue.trim()} : i
+            ));
+            setExpandedRooms(prev => {
+                const next = new Set(prev);
+                if (next.has(renamingRoom)) {
+                    next.delete(renamingRoom);
+                    next.add(renameValue.trim());
+                }
+                return next;
+            });
+            setRenamingRoom(null);
+            toast.success('Room renamed');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to rename room');
+        } finally {
+            setIsRenaming(false);
+        }
+    };
+
+    // ─── Capture cover ─────────────────────────────────────────────────────────
+
+    const [isCapturing, setIsCapturing] = useState(false);
+
+    const handleCaptureCover = () => {
+        const video = playerRef.current;
+        if (!video) return;
+
+        setIsCapturing(true);
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas not supported');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    toast.error('Failed to capture screenshot');
+                    setIsCapturing(false);
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('file', blob, `cover_${id}_${Date.now()}.jpg`);
+                uploadCover(formData as any);
+            }, 'image/jpeg', 0.85);
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to capture cover');
+            setIsCapturing(false);
+        }
+    };
+
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     const handleSeekItem = (seconds: number) => {
@@ -428,19 +521,39 @@ export default function ReportPage() {
 
                     {/* 16:9 Video Player */}
                     <div
-                        className="relative w-full pb-[56.25%] rounded-sm overflow-hidden bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                        className="group/video relative w-full pb-[56.25%] rounded-sm overflow-hidden bg-black shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                         {inspection?.video_status === 'transcoded' || inspection?.video_status === 'uploded' ? (
-                            <ReactPlayer
-                                ref={playerRef}
-                                src={inspection.video_url}
-                                controls
-                                width="100%"
-                                height="100%"
-                                className="absolute inset-0"
-                            />
+                            <>
+                                <ReactPlayer
+                                    ref={playerRef}
+                                    src={inspection.video_url}
+                                    controls
+                                    crossOrigin="anonymous"
+                                    width="100%"
+                                    height="100%"
+                                    className="absolute inset-0"
+                                />
+                                <button
+                                    onClick={handleCaptureCover}
+                                    disabled={isCapturing}
+                                    className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-white text-xs font-semibold border-none cursor-pointer opacity-0 group-hover/video:opacity-100 transition-opacity hover:bg-black/80 disabled:opacity-50"
+                                >
+                                    {isCapturing
+                                        ? <Loader2 size={13} className="animate-spin"/>
+                                        : <Camera size={13}/>
+                                    }
+                                    Save as Cover
+                                </button>
+                            </>
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-(--text-muted)">
-                                The video is currently being transcoded, please wait.
+                                {
+                                    inspection.video_url ? (
+                                        <span>The video is currently being transcoded, please wait.</span>
+                                    ) : (
+                                        <span>No video uploaded</span>
+                                    )
+                                }
                             </div>
                         )}
                     </div>
@@ -594,7 +707,7 @@ export default function ReportPage() {
                                     >
                                         <div
                                             onClick={() => toggleRoom(group.name)}
-                                            className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
+                                            className="group/room flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                                         >
                                             {isExpanded
                                                 ? <ChevronDown size={16} className="text-(--text-muted) shrink-0"/>
@@ -617,6 +730,13 @@ export default function ReportPage() {
                                             title="Add item to this room"
                                         >
                                             <Plus size={14}/>
+                                        </button>
+                                        <button
+                                            onClick={() => openRenameRoom(group.name)}
+                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                            title="Rename room"
+                                        >
+                                            <Pencil size={12}/>
                                         </button>
                                     </div>
 
@@ -678,22 +798,30 @@ export default function ReportPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <Select
                                                                     value={editForm.condition}
-                                                                    onValueChange={v => setEditForm(f => ({...f, condition: v}))}
+                                                                    onValueChange={v => setEditForm(f => ({
+                                                                        ...f,
+                                                                        condition: v
+                                                                    }))}
                                                                 >
                                                                     <SelectTrigger size="sm" className="flex-1 text-xs">
                                                                         <SelectValue/>
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        <SelectItem value="New Item">New Item</SelectItem>
+                                                                        <SelectItem value="New Item">New
+                                                                            Item</SelectItem>
                                                                         <SelectItem value="Good">Good</SelectItem>
                                                                         <SelectItem value="Fair">Fair</SelectItem>
                                                                         <SelectItem value="Poor">Poor</SelectItem>
-                                                                        <SelectItem value="Very Poor">Very Poor</SelectItem>
+                                                                        <SelectItem value="Very Poor">Very
+                                                                            Poor</SelectItem>
                                                                     </SelectContent>
                                                                 </Select>
                                                                 <Select
                                                                     value={editForm.severity || '_none'}
-                                                                    onValueChange={v => setEditForm(f => ({...f, severity: v === '_none' ? '' : v}))}
+                                                                    onValueChange={v => setEditForm(f => ({
+                                                                        ...f,
+                                                                        severity: v === '_none' ? '' : v
+                                                                    }))}
                                                                 >
                                                                     <SelectTrigger size="sm" className="flex-1 text-xs">
                                                                         <SelectValue/>
@@ -804,6 +932,40 @@ export default function ReportPage() {
                     </div>
                 </section>
             </div>
+
+            {/* Rename Room Dialog */}
+            <Dialog open={!!renamingRoom} onOpenChange={open => {
+                if (!open) setRenamingRoom(null);
+            }}>
+                <DialogContent className="sm:max-w-sm" style={{
+                    background: 'var(--background)',
+                    border: '1px solid var(--panel-border)',
+                    overflow: 'hidden'
+                }}>
+                    <DialogHeader>
+                        <DialogTitle>Rename Room</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <input
+                            value={renameValue}
+                            onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') handleRenameRoom();
+                            }}
+                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                            placeholder="Room name"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenamingRoom(null)}>Cancel</Button>
+                        <Button onClick={handleRenameRoom} disabled={isRenaming || !renameValue.trim()}>
+                            {isRenaming ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : null}
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {showSignaturePad && (
                 <SignaturePad

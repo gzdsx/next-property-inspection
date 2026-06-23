@@ -3,7 +3,7 @@
 import {useEffect, useState} from "react";
 import ReportCard from "@/components/frontend/ReportCard";
 import {useConfirm, useSpinner} from "@/contexts/AppContext";
-import {useDeleteInspectionMutation, useInspectionsQuery} from "@/queries/inspection";
+import {useDeleteInspectionMutation, useInspectionListQuery} from "@/queries/inspection";
 
 const ReportClient = () => {
     const [reports, setReports] = useState<any[]>([]);
@@ -15,7 +15,7 @@ const ReportClient = () => {
         data: inspectionData,
         isFetching: isInspectionFetching,
         refetch: refetchInspections
-    } = useInspectionsQuery({limit: 5});
+    } = useInspectionListQuery({limit: 5});
 
     const {mutate: deleteInspection} = useDeleteInspectionMutation({
         onMutate: () => {

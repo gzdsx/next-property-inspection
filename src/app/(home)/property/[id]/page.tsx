@@ -17,7 +17,7 @@ import ModalProperty from "@/components/frontend/ModalProperty";
 import {useSpinner} from "@/contexts/AppContext";
 import InspectionGrid from "@/components/frontend/InspectionGrid";
 import {usePropertyQuery} from "@/queries/property";
-import {useCreateInspectionMutation, useInspectionsQuery} from "@/queries/inspection";
+import {useCreateInspectionMutation, useInspectionListQuery} from "@/queries/inspection";
 import {Inspection} from "@/types";
 
 export default function PropertyDetailPage() {
@@ -30,7 +30,7 @@ export default function PropertyDetailPage() {
     const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
 
     const {data: property, refetch: refetchProperty, isFetching: isPropertyFetching} = usePropertyQuery(id);
-    const {data: inpectionData, isFetching: isInspectionFetching} = useInspectionsQuery({property_id: id});
+    const {data: inpectionData, isFetching: isInspectionFetching} = useInspectionListQuery({property_id: id});
     const {mutate: createInspection} = useCreateInspectionMutation({
         onMutate: () => {
             spinner.show();

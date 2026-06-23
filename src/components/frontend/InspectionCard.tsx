@@ -117,12 +117,12 @@ const InspectionCard = ({inspection, onDeleted, onChange}: InspectionCardProps) 
 
     return (
         <div className={'border border-gray-600 rounded-lg'}>
-            <div className={`relative w-full pt-[45%] rounded-tl-lg rounded-tr-lg overflow-hidden`}>
+            <div className={`relative w-full rounded-tl-lg rounded-tr-lg overflow-hidden`}>
                 <Link href={`/report/${inspection.id}`}>
                     <img
                         src={inspection.image ? inspection.image : "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80"}
                         alt={inspection.property?.name}
-                        className={'absolute top-0 left-0 w-full h-full object-cover'}
+                        className={'w-full aspect-4/3 object-contain'}
                         onError={(e) => {
                             e.currentTarget.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80";
                         }}

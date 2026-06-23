@@ -16,12 +16,15 @@ import {
 } from "lucide-react";
 import {signOut, useSession} from "next-auth/react";
 import {useEffect, useMemo, useRef, useState} from "react";
-import {apiGet, apiPost} from "@/lib/api";
+import {apiPost} from "@/lib/api";
+import {usePropertyListQuery} from "@/queries/property";
 import Autocomplete from "react-google-autocomplete";
 import ModalCamera from "@/components/frontend/ModalCamera";
+import ModalMediaPicker from "@/components/frontend/ModalMediaPicker";
 import {useNewReport} from "@/contexts/ReportContext";
 import {useRouter} from "next/navigation";
 import {useChunkUpload} from "@/hooks/useChunkUpload";
+import {toast} from "sonner";
 
 const getAddressSimilarity = (addr1: string, addr2: string): number => {
     const cleanAndTokenize = (str: string) => {
@@ -58,20 +61,18 @@ const InspectionForm = () => {
 
     const safeReport = report || {};
     const [activeTab, setActiveTab] = useState('live');
-    const [properties, setProperties] = useState<any[]>([]);
+    const {data: propertyData} = usePropertyListQuery();
+    const properties = propertyData?.items || [];
 
-    const [coverPhotoDataUrl, setCoverPhotoDataUrl] = useState<string | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
-    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-    const videoPreviewRef = useRef<HTMLVideoElement>(null);
+    const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+    const [floorplanPickerOpen, setFloorplanPickerOpen] = useState(false);
 
     const [isHoveringUpload, setIsHoveringUpload] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [showResumeModal, setShowResumeModal] = useState(false);
 
     const pdfInputRef = useRef<HTMLInputElement>(null);
-    const imageInputRef = useRef<HTMLInputElement>(null);
-    const coverFileInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
     const autocompleteRef = useRef<any>(null);
 
@@ -86,34 +87,13 @@ const InspectionForm = () => {
     const {uploadFile, uploadStatus, uploadProgress} = useChunkUpload();
 
     const currentProperty = useMemo(() => {
-        return properties.find(p => p.id == safeReport.propertyId);
+        return properties.find((p: any) => p.id == safeReport.propertyId);
     }, [properties, safeReport.propertyId]);
 
-    const fetchProperties = async () => {
-        try {
-            const response = await apiGet(`/inspection/properties`);
-            setProperties([...response.data.items]);
-        } catch (e) {
-
-        } finally {
-
-        }
-    }
-
-    const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target?.result as string;
-            updateReport({propertyCoverImage: dataUrl});
-        };
-        reader.readAsDataURL(file);
-    };
 
     // ── Offline Video Upload & Analysis ─────────────────────────────────────
     const handleOfflineUpload = async () => {
-        const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
+        const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, floorplanImages} = safeReport;
         if (!safeReport.videoFile) {
             alert(language === 'zh' ? '请先选择视频文件' : 'Please select a video file first');
             return;
@@ -125,23 +105,24 @@ const InspectionForm = () => {
 
         try {
             setOfflineStatusStep(1);
-            const videoUrl = await uploadFile(safeReport.videoFile);
+            const videoData = await uploadFile(safeReport.videoFile);
             setOfflineStatusStep(2);
             updateReport({videoFile: null});
 
             const formData = new FormData();
             formData.append('status', 'draft');
-            formData.append('video_src', videoUrl);
+            formData.append('video_url', videoData.path);
             formData.append('video_type', safeReport.videoFile.type);
+            formData.append('video_status', 'draft');
             if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('property_address', propertyAddress);
-            if (propertyCoverImage) formData.append('property_cover_image', propertyCoverImage);
-            if (notes) formData.append('notes', notes);
+            if (propertyCoverImage) formData.append('image', propertyCoverImage);
+            if (notes) formData.append('subtext', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
-            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
-            const response = await apiPost(`/inspections`, formData);
+            if (floorplanImages) floorplanImages.forEach((image: any) => formData.append('room_images[]', image.src));
+            const inspectionData = await apiPost(`/inspections`, formData);
 
-            await apiPost(`/gemini/inspections/analyze`, {inspection_id: response.data.id});
+            await apiPost(`/inspections/${inspectionData.id}/analyze`);
             setOfflineStatusStep(3);
             setAnalysisFinished(true);
             setShowBackgroundModal(true);
@@ -155,7 +136,15 @@ const InspectionForm = () => {
     const handleStart = async () => {
         try {
             setIsProcessing(true);
-            const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
+            const {
+                propertyId,
+                propertyCoverImage,
+                propertyAddress,
+                notes,
+                pdfFile,
+                videoFile,
+                floorplanImages
+            } = safeReport;
 
             const formData = new FormData();
             formData.append('status', 'draft');
@@ -164,25 +153,22 @@ const InspectionForm = () => {
             if (propertyCoverImage) formData.append('propertyCoverImage', propertyCoverImage);
             if (notes) formData.append('notes', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
-            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
-            const {data} = await apiPost(`/gemini/inspections/pre-process`, formData);
+            if (floorplanImages) floorplanImages.forEach((image: any) => formData.append('imageFiles[]', image.src));
+            const {knowledgeBase, inspection_id} = await apiPost(`/gemini/inspections/pre-process`, formData);
 
-            if (data.knowledgeBase) {
-                localStorage.setItem('pre_inspection_kb', data.knowledgeBase);
+            //console.log('knowledgeBase',knowledgeBase);
+            if (knowledgeBase) {
+                localStorage.setItem('pre_inspection_kb', knowledgeBase);
             } else {
                 localStorage.removeItem('pre_inspection_kb');
             }
-            router.push('/inspection/live');
-        } catch (e) {
-
+            router.push(`/inspection/${inspection_id}/live`);
+        } catch (e: any) {
+            toast.error(e.message);
         } finally {
             setIsProcessing(false);
         }
     }
-
-    useEffect(() => {
-        fetchProperties();
-    }, []);
 
     useEffect(() => {
         if (currentProperty) {
@@ -350,74 +336,54 @@ const InspectionForm = () => {
                             <Camera className="w-4 h-4 text-blue-500"/>
                             {language === 'zh' ? '住宅封面照片' : 'Property Cover Photo'}
                         </label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            ref={coverFileInputRef}
-                            onChange={handleCoverFileChange}
-                        />
-                        {
-                            safeReport.propertyCoverImage ? (
+                        {safeReport.propertyCoverImage ? (
+                            <div
+                                className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm animate-in fade-in zoom-in duration-200 group">
+                                <img src={report.propertyCoverImage} alt="Property exterior"
+                                     className="w-full h-44 object-cover"/>
                                 <div
-                                    className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm animate-in fade-in zoom-in duration-200">
-                                    <img src={report.propertyCoverImage} alt="Property exterior"
-                                         className="w-full h-44 object-cover"/>
-                                    <div
-                                        className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-transparent"/>
-                                    {/* Top-right floating close button */}
-                                    <button
-                                        onClick={() => {
-                                            updateReport({propertyCoverImage: null});
-                                        }}
-                                        className="absolute top-3 right-3 w-8 h-8 bg-slate-900/60 backdrop-blur text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-colors shadow"
-                                        title={language === 'zh' ? '删除封面图' : 'Remove cover photo'}
-                                    >
-                                        <X className="w-4 h-4"/>
-                                    </button>
-
-                                    <div
-                                        className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
-                                                <span
-                                                    className="text-white text-xs font-semibold bg-blue-600/85 backdrop-blur px-2.5 py-1.5 rounded-xl cursor-pointer"
-                                                    onClick={(e) => {
-                                                        e.nativeEvent.stopPropagation();
-                                                        updateReport({propertyCoverImage: currentProperty?.image});
-                                                    }}
-                                                >
-                                                  🏠 {language === 'zh' ? '已导入房源封面' : 'Loaded Record Cover'}
-                                                </span>
-                                        <button
-                                            onClick={(e) => {
-                                                e.nativeEvent.stopPropagation();
-                                                coverFileInputRef.current?.click()
-                                            }}
-                                            className="px-3.5 py-2 bg-white/95 backdrop-blur text-slate-800 text-xs font-bold rounded-xl hover:bg-white active:scale-95 transition-all shadow-md flex items-center gap-1.5"
-                                        >
-                                            <Camera className="w-3.5 h-3.5 text-blue-600"/>
-                                            {language === 'zh' ? '拍照或重新上传' : 'Retake / Re-upload'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
+                                    className="absolute inset-0 bg-linear-to-t from-black/55 via-transparent to-transparent"/>
                                 <button
-                                    onClick={() => coverFileInputRef.current?.click()}
-                                    className="w-full p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-2 group"
+                                    onClick={() => updateReport({propertyCoverImage: null})}
+                                    className="absolute top-3 right-3 w-8 h-8 bg-slate-900/60 backdrop-blur text-white rounded-full flex items-center justify-center hover:bg-slate-900 transition-colors shadow"
                                 >
-                                    <div
-                                        className="p-3 rounded-full bg-white text-slate-400 shadow-sm group-hover:text-blue-500 transition-colors">
-                                        <Camera className="w-6 h-6"/>
-                                    </div>
-                                    <span
-                                        className="text-sm font-bold text-slate-700 group-hover:text-blue-600">
-                                            {language === 'zh' ? '拍照或选择相册' : 'Take Photo or Select Gallery'}
-                                              </span>
-                                    <span className="text-[10px] text-slate-400">
-                                            {language === 'zh' ? '可选 · 该房源记录无封面，点击手动上传' : 'Optional · No cover photo in record, click to add'}
-                                            </span>
+                                    <X className="w-4 h-4"/>
                                 </button>
-                            )
-                        }
+                                <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center">
+                                    {currentProperty?.image && (
+                                        <span
+                                            className="text-white text-xs font-semibold bg-blue-600/85 backdrop-blur px-2.5 py-1.5 rounded-xl cursor-pointer"
+                                            onClick={() => updateReport({propertyCoverImage: currentProperty?.image})}
+                                        >
+                                            {language === 'zh' ? '已导入房源封面' : 'Loaded Record Cover'}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={() => setCoverPickerOpen(true)}
+                                        className="px-3.5 py-2 bg-white/95 backdrop-blur text-slate-800 text-xs font-bold rounded-xl hover:bg-white active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                                    >
+                                        <Camera className="w-3.5 h-3.5 text-blue-600"/>
+                                        {language === 'zh' ? '重新选择' : 'Change'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => setCoverPickerOpen(true)}
+                                className="w-full p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-2 group"
+                            >
+                                <div
+                                    className="p-3 rounded-full bg-white text-slate-400 shadow-sm group-hover:text-blue-500 transition-colors">
+                                    <Camera className="w-6 h-6"/>
+                                </div>
+                                <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600">
+                                    {language === 'zh' ? '从图库选择' : 'Select from Library'}
+                                </span>
+                                <span className="text-[10px] text-slate-400">
+                                    {language === 'zh' ? '可选 · 点击从图片库选择封面' : 'Optional · Click to choose from image library'}
+                                </span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Notes & PDF Upload */}
@@ -488,50 +454,62 @@ const InspectionForm = () => {
                     <div className="space-y-2">
                         <label className="text-sm font-semibold text-slate-700">{t('upload_floorplan')}</label>
                         <p className="text-xs text-slate-500">{t('upload_desc')}</p>
-                        <input type="file" accept="image/*" multiple className="hidden" ref={imageInputRef}
-                               onChange={e => {
-                                   if (e.target.files && e.target.files.length > 0) {
-                                       updateReport({
-                                           imageFiles: [...(safeReport.imageFiles || []), ...Array.from(e.target.files as FileList)]
-                                       });
-                                   }
-                               }}
-                        />
-                        <div
-                            onClick={() => imageInputRef.current?.click()}
-                            onMouseEnter={() => setIsHoveringUpload(true)}
-                            onMouseLeave={() => setIsHoveringUpload(false)}
-                            className={`w-full p-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer group
-                                            ${isHoveringUpload ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:border-blue-400'}`}
-                        >
-                            {safeReport.imageFiles?.length > 0 ? (
-                                <>
-                                    <div className="p-3 rounded-full mb-2 bg-green-100 text-green-600">
-                                        <UploadCloud className="w-5 h-5"/>
-                                    </div>
-                                    <span
-                                        className="text-sm font-medium text-green-700">{safeReport.imageFiles?.length || 0} image(s) selected</span>
-                                    <span className="text-[11px] text-red-500 mt-1 font-bold"
-                                          onClick={e => {
-                                              e.stopPropagation();
-                                              updateReport({imageFiles: []});
-                                          }}>Remove All</span>
-                                </>
-                            ) : (
-                                <>
-                                    <div
-                                        className={`p-3 rounded-full mb-2 transition-colors ${isHoveringUpload ? 'bg-blue-100 text-blue-600' : 'bg-white text-slate-400 shadow-sm'}`}>
-                                        <UploadCloud className="w-5 h-5"/>
-                                    </div>
-                                    <span
-                                        className={`text-sm font-medium transition-colors ${isHoveringUpload ? 'text-blue-700' : 'text-slate-600'}`}>
-                                                Tap to select files
-                                            </span>
-                                    <span
-                                        className="text-[11px] text-slate-400 mt-1">JPEG, PNG up to 10MB</span>
-                                </>
-                            )}
-                        </div>
+                        {safeReport.floorplanImages?.length > 0 ? (
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                    {safeReport.floorplanImages.map((img: any, idx: number) => (
+                                        <div key={idx}
+                                             className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200">
+                                            <img src={img.thumbnail || img.src} className="w-full h-full object-cover"
+                                                 alt=""/>
+                                            <button
+                                                onClick={() => {
+                                                    const next = [...safeReport.floorplanImages];
+                                                    next.splice(idx, 1);
+                                                    updateReport({floorplanImages: next});
+                                                }}
+                                                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center text-[8px]"
+                                            >
+                                                <X className="w-2.5 h-2.5"/>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFloorplanPickerOpen(true)}
+                                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    >
+                                        + {language === 'zh' ? '添加更多' : 'Add more'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateReport({floorplanImages: []})}
+                                        className="text-xs font-semibold text-red-500 hover:text-red-600"
+                                    >
+                                        {language === 'zh' ? '清除全部' : 'Remove all'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                onClick={() => setFloorplanPickerOpen(true)}
+                                className="w-full p-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer group border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50"
+                            >
+                                <div
+                                    className="p-3 rounded-full mb-2 bg-white text-slate-400 shadow-sm group-hover:text-blue-500 transition-colors">
+                                    <UploadCloud className="w-5 h-5"/>
+                                </div>
+                                <span
+                                    className="text-sm font-medium text-slate-600 group-hover:text-blue-700 transition-colors">
+                                    {language === 'zh' ? '从图库选择' : 'Select from Library'}
+                                </span>
+                                <span className="text-[11px] text-slate-400 mt-1">
+                                    {language === 'zh' ? '支持多选' : 'Multiple selection supported'}
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {
@@ -722,6 +700,27 @@ const InspectionForm = () => {
                     </div>
                 </div>
             )}
+
+            <ModalMediaPicker
+                open={coverPickerOpen}
+                onClose={() => setCoverPickerOpen(false)}
+                onSelect={(items) => {
+                    if (items.length > 0) {
+                        updateReport({propertyCoverImage: items[0].src || items[0].thumbnail});
+                    }
+                }}
+            />
+
+            <ModalMediaPicker
+                open={floorplanPickerOpen}
+                onClose={() => setFloorplanPickerOpen(false)}
+                onSelect={(items) => {
+                    updateReport({
+                        floorplanImages: [...(safeReport.floorplanImages || []), ...items]
+                    });
+                }}
+                multiple
+            />
         </>
     );
 };

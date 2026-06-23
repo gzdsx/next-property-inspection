@@ -2,22 +2,23 @@
 
 import Link from "next/link";
 import React, {useState} from "react";
-import {usePathname} from "next/navigation";
-import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Video} from "lucide-react";
 import {signOut} from "next-auth/react";
+import {usePathname, useRouter} from "next/navigation";
+import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Users, Video} from "lucide-react";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
 
 export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
     const pathname = usePathname();
+    const router = useRouter();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [inspectorProfile, setInspectorProfile] = useState<any>({});
     const theme = 'dark';
 
     const navItems = [
         {href: '/', icon: HomeIcon, title: 'Dashboard'},
-        {href: '/videos/upload', icon: Video, title: 'Batch Video Analysis'},
+        {href: '/staff', icon: Users, title: 'Staff Management'},
         {href: '/analytics', icon: BarChart3, title: 'Analytics'},
         {href: '/profile', icon: Settings, title: 'Profile'},
     ];
@@ -84,6 +85,7 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                                 </div>
                                 <div className="profile-popup-item" onClick={() => {
                                     setIsProfileOpen(false);
+                                    router.push('/profile');
                                 }}>
                                     <Settings size={16}/>
                                     <span>Settings</span>

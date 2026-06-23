@@ -221,41 +221,33 @@ export default function InspectionEditPage() {
                         </p>
                     )}
                 </div>
-
-                <div className="flex gap-3">
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 px-6 py-2.5 font-bold text-sm text-white cursor-pointer"
-                        style={{
-                            backgroundColor: 'var(--primary)',
-                            border: 'none',
-                            borderRadius: '12px',
-                            opacity: isSaving ? 0.7 : 1,
-                        }}
-                    >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                </div>
             </div>
 
             <div className="flex flex-col gap-6">
                 {/* ── Property Info ────────────────────────────────────────── */}
                 <div className="glass-panel" style={{borderRadius: '16px', overflow: 'hidden'}}>
-                    <div className="px-6 py-4" style={{borderBottom: '1px solid var(--panel-border)'}}>
+                    <div className="px-6 py-4 flex items-center justify-between" style={{borderBottom: '1px solid var(--panel-border)'}}>
                         <h2 className="text-base font-bold flex items-center gap-2">
-                            <MapPin className="w-4 h-4" style={{color: 'var(--primary)'}}/>
-                            Information
+                            <FileText className="w-4 h-4 text-primary!" style={{color: 'var(--primary)'}}/>
+                            Inspector Notes
                         </h2>
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex items-center gap-2 px-6 py-2.5 font-bold text-sm text-white cursor-pointer"
+                            style={{
+                                backgroundColor: 'var(--primary)',
+                                border: 'none',
+                                borderRadius: '12px',
+                                opacity: isSaving ? 0.7 : 1,
+                            }}
+                        >
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Save className="w-4 h-4"/>}
+                            {isSaving ? 'Saving...' : 'Save Notes'}
+                        </button>
                     </div>
                     <div className="p-6 flex flex-col gap-5">
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold flex items-center gap-2"
-                                   style={{color: 'var(--text-muted)'}}>
-                                <FileText className="w-3.5 h-3.5"/>
-                                Inspector Notes
-                            </label>
                             <textarea
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}

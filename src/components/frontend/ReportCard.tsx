@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dayjs from "dayjs";
 import {ChevronRight, Link2, Trash2} from "lucide-react";
-import {capitalize} from "@/lib/utils";
+import {useRouter} from "next/navigation";
 
 interface ReportCardProps {
     report: any,
@@ -11,6 +11,7 @@ interface ReportCardProps {
 }
 
 const ReportCard = ({report, onDelete}: ReportCardProps) => {
+    const router = useRouter();
     const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         onDelete?.(report);
@@ -18,12 +19,12 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
 
     return (
         <div className={'glass-panel glass-panel-hover property-card'}>
-            <div className="property-image-wrapper">
+            <div className="property-image-wrapper aspect-4/3!">
                 <Link href={`/report/${report.id}`}>
                     <img
                         src={report.image ? report.image : "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80"}
                         alt="Property Cover"
-                        className="property-image"
+                        className="property-image aspect-4/3!"
                         onError={(e) => {
                             // Standard fallback image if thumb fails
                             e.currentTarget.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80";
@@ -32,9 +33,8 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                 </Link>
                 <div className="absolute top-3 left-3"
                      style={{display: "flex", gap: "6px"}}>
-                    <span className={`badge ${report.isSigned ? "badge-success" : "badge-warning"}`}>
-                        {capitalize(report.status)}
-                    </span>
+                    <span
+                        className={`capitalize badge ${report.isSigned ? "badge-success" : "badge-warning"}`}>{report.status}</span>
                     <span className={`badge ${report.isSigned ? "badge-success" : "badge-danger"}`}>
                         {report.signature ? "✍️ Signed" : "⏳ Unsigned"}
                     </span>
@@ -53,16 +53,11 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                         fontWeight: "bold",
                         lineHeight: "1.3"
                     }} className="truncate">
-                        {report.address || `Property #${report.property?.id}`}
+                        {report.property?.name}
                     </h3>
                     <p className={'text-sm text-gray-500 mt-1'}>
                         {report.user ? `By ${report.user.name}` : "AI Automated Inspection"}
                     </p>
-                    <div style={{marginTop: "6px"}}>
-                              <span className={'text-sm py-2 px-3 rounded-sm bg-black/5 border'}>
-                                Report ID: #{report.id}
-                              </span>
-                    </div>
                 </div>
 
                 <div className="room-badge-row">
@@ -110,6 +105,7 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                             onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                router.push(`/report/${report.id}/edit`)
                             }}
                             title="Add to Property as Historical Visit"
                             className={'text-3xl size-8 rounded-md bg-red-200/10 aspect-square text-gray-300 flex justify-center items-center cursor-pointer'}

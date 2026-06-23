@@ -28,6 +28,10 @@
     --sidebar-width: 80px;
     --border-radius: 16px;
     --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --input: rgba(255, 255, 255, 0.12);
+    --border-input: 1px solid rgba(255, 255, 255, 0.12);
+    --ring-1: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .light-theme {
@@ -56,13 +60,16 @@ body {
     width: 6px;
     height: 6px;
 }
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.24);
 }
@@ -251,7 +258,6 @@ body {
 
 .property-image-wrapper {
     position: relative;
-    height: 180px;
     width: 100%;
     background: #1e293b;
     overflow: hidden;
@@ -286,18 +292,35 @@ body {
     letter-spacing: 0.2px;
 }
 
-.badge-primary { background: var(--primary-bg); color: var(--primary); }
-.badge-success { background: var(--success-bg); color: var(--success); }
-.badge-warning { background: var(--warning-bg); color: var(--warning); }
-.badge-danger { background: var(--danger-bg); color: var(--danger); }
+.badge-primary {
+    background: var(--primary-bg);
+    color: var(--primary);
+}
+
+.badge-success {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.badge-warning {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.badge-danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
 
 /* Absolute positioning utility classes */
 .top-3 {
     top: 12px;
 }
+
 .left-3 {
     left: 12px;
 }
+
 .right-3 {
     right: 12px;
 }
@@ -372,8 +395,14 @@ body {
 }
 
 @keyframes modalZoom {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
 /* Profile Menu Popup styling */
@@ -395,8 +424,14 @@ body {
 }
 
 @keyframes popupFade {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .profile-popup-item {
@@ -509,8 +544,14 @@ body {
 }
 
 @keyframes toastIn {
-    from { opacity: 0; transform: translate(-50%, -20px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
 }
 
 .toast-exit {
@@ -518,8 +559,14 @@ body {
 }
 
 @keyframes toastOut {
-    from { opacity: 1; transform: translate(-50%, 0); }
-    to { opacity: 0; transform: translate(-50%, -20px); }
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
 }
 
 /* Float action panel */
@@ -576,10 +623,26 @@ body {
     font-size: 0.65rem;
     font-weight: bold;
 }
-.room-badge-completed { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-.room-badge-poor { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-.room-badge-fair { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-.room-badge-good { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+.room-badge-completed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.room-badge-poor {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.room-badge-fair {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.room-badge-good {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
 
 /* ── Toast Notifications ─────────────────────────────────────────── */
 .toast-container {
@@ -601,9 +664,9 @@ body {
     border-radius: 12px;
     font-size: 0.875rem;
     font-weight: 500;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     pointer-events: all;
     animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 360px;
@@ -634,15 +697,21 @@ body {
 }
 
 @keyframes toastSlideIn {
-    from { opacity: 0; transform: translateX(40px); }
-    to { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 /* ── Confirm Dialog Overlay ──────────────────────────────────────── */
 .confirm-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     z-index: 9998;
     display: flex;
@@ -658,7 +727,7 @@ body {
     padding: 28px;
     max-width: 380px;
     width: 100%;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 .confirm-dialog h4 {
@@ -721,6 +790,13 @@ body {
 
         /* ⚡ 将浅色模式下的 focus 边框颜色改为天蓝色 (Sky 500 的 HSL 值) */
         --ring: #2d5cf3;
+        --input: rgba(255, 255, 255, 0.15);
+        --color-primary: #2d5cf3;
+        --color-input: rgba(255, 255, 255, 0.15);
+    }
+
+    .border-input {
+        border-color: rgba(255, 255, 255, 0.25) !important;
     }
 
     .dark {

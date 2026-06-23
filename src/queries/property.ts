@@ -9,7 +9,7 @@ export function usePropertyQuery(id: number | string) {
     });
 }
 
-export function usePropertiesQuery(params?: any) {
+export function usePropertyListQuery(params?: any) {
     return useQuery({
         queryKey: ['properties', params],
         queryFn: () => apiGet(`/properties`, params),

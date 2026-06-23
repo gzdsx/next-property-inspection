@@ -1,10 +1,15 @@
 'use client';
 
-import {createContext, useContext, useState} from "react";
+import {createContext, useCallback, useContext, useRef, useState} from "react";
 import {Spinner} from "@/components/ui/spinner";
 import ModalInspectionVideo from "@/components/frontend/ModalInspectionVideo";
 import {DialogConfirmClient, DialogConfirmClientProps} from "@/components/frontend/DialogConfirmClient";
+import ModalMediaPicker, {type MediaItem} from "@/components/frontend/ModalMediaPicker";
 
+interface MediaPickerOptions {
+    multiple?: boolean;
+    onSelect: (items: MediaItem[]) => void;
+}
 
 interface AppContextProps {
     dialogConfirm: {
@@ -14,6 +19,10 @@ interface AppContextProps {
     spinner: {
         show: (description?: string) => void;
         hide: () => void;
+    },
+    mediaPicker: {
+        open: (options: MediaPickerOptions) => void;
+        close: () => void;
     },
     inspection: any,
     openInspection: (inspection: any) => void;
@@ -31,10 +40,30 @@ export function AppProvider({children}: { children: React.ReactNode }) {
     const [inspection, setInspection] = useState<any>(null);
     const [isInspectionOpen, setIsInspectionOpen] = useState(false);
 
+    const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+    const [mediaPickerMultiple, setMediaPickerMultiple] = useState(false);
+    const mediaPickerCallback = useRef<((items: MediaItem[]) => void) | null>(null);
+
     const openInspection = (newInspection: any) => {
         setInspection(newInspection);
         setIsInspectionOpen(true);
-    }
+    };
+
+    const openMediaPicker = useCallback((options: MediaPickerOptions) => {
+        mediaPickerCallback.current = options.onSelect;
+        setMediaPickerMultiple(options.multiple ?? false);
+        setIsMediaPickerOpen(true);
+    }, []);
+
+    const closeMediaPicker = useCallback(() => {
+        setIsMediaPickerOpen(false);
+        mediaPickerCallback.current = null;
+    }, []);
+
+    const handleMediaSelect = useCallback((items: MediaItem[]) => {
+        mediaPickerCallback.current?.(items);
+        mediaPickerCallback.current = null;
+    }, []);
 
     return (
         <AppContext.Provider value={{
@@ -58,6 +87,10 @@ export function AppProvider({children}: { children: React.ReactNode }) {
                     setIsSpinnerOpen(false);
                 }
             },
+            mediaPicker: {
+                open: openMediaPicker,
+                close: closeMediaPicker,
+            },
             inspection,
             openInspection
         }}>
@@ -73,6 +106,14 @@ export function AppProvider({children}: { children: React.ReactNode }) {
                 setIsConfirmOpen(false);
                 dialogConfirmProps.onCancel?.();
             }}/>
+
+            <ModalMediaPicker
+                open={isMediaPickerOpen}
+                onClose={closeMediaPicker}
+                onSelect={handleMediaSelect}
+                multiple={mediaPickerMultiple}
+            />
+
             {
                 isSpinnerOpen && (
                     <div
@@ -102,6 +143,11 @@ export function useConfirm() {
 export function useSpinner() {
     const {spinner} = useAppContext();
     return spinner;
+}
+
+export function useMediaPicker() {
+    const {mediaPicker} = useAppContext();
+    return mediaPicker;
 }
 
 export function useInspection() {

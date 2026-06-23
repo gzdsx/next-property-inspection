@@ -1,6 +1,6 @@
 import {useState, useRef, useCallback, useEffect} from 'react';
 import {GoogleGenAI, Modality} from '@google/genai';
-import {apiPost} from "@/lib/api";
+import {apiPost, apiPut} from "@/lib/api";
 import {useUploadQueue} from "@/hooks/useUploadQueue";
 import {useNewReport} from "@/contexts/ReportContext";
 
@@ -695,7 +695,7 @@ export function useGeminiLive() {
      * 同步上传到服务器 (Video Portal)
      * 收集录制的 WebM 视频片段、巡检记录 JSON、以及包含巡检员信息的 Meta 数据，一次性提交。
      */
-    const uploadToServer = async () => {
+    const uploadToServer = async (inspectionId: string) => {
         // 1. 如果相机还在录像/暂停状态，必须强行停止以触发最后一段 dataavailable 事件
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
             mediaRecorderRef.current.stop();
@@ -710,30 +710,24 @@ export function useGeminiLive() {
         addLog('Uploading video and records to server...');
 
         try {
-            const videoRes = await apiPost(`/file/chunk/merge`, {
+            const videoData = await apiPost(`/file/chunk/merge`, {
                 file_id: fileId,
                 save_dir: 'videos',
                 file_ext: 'webm',
                 file_type: 'video/webm'
             });
 
-            const {propertyId, propertyCoverImage, propertyAddress, notes, pdfFile, videoFile, imageFiles} = safeReport;
             const formData = new FormData();
             formData.append('status', 'completed');
-            formData.append('video_src', videoRes.data.url);
+            formData.append('video_url', videoData.url);
             formData.append('video_type', 'video/webm');
-            formData.append('records', JSON.stringify(recordsRef.current));
-            if (propertyId) formData.append('property_id', propertyId);
-            if (propertyAddress) formData.append('property_address', propertyAddress);
-            if (propertyCoverImage) formData.append('property_cover_image', propertyCoverImage);
-            if (notes) formData.append('notes', notes);
-            if (pdfFile) formData.append('pdfFile', pdfFile);
-            if (imageFiles) imageFiles.forEach((file: any) => formData.append('imageFiles', file));
+            formData.append('video_status', 'draft');
 
-            const response = await apiPost(`/inspections`, formData);
+            await apiPut(`/inspections/${inspectionId}`, formData);
+            await apiPost(`/inspections/${inspectionId}/items/batch`, recordsRef.current);
 
-            setUploadReportId(response.data.id);
-            addLog('Upload successful! Report ID: ' + response.data.id);
+            setUploadReportId(inspectionId);
+            addLog('Upload successful! Report ID: ' + inspectionId);
 
             // ✅ 上传成功后：清空 localStorage 中的巡检记录，防止下次打开 App 时
             // 错误地弹出"发现历史记录"的恢复提示框（这次已经成功上传了，不需要恢复）。

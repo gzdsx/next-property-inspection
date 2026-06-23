@@ -18,6 +18,7 @@ import {LocaleProvider} from "@/contexts/LocaleContext";
 import LoginClient from "@/components/frontend/LoginClient";
 import {SessionProvider} from "next-auth/react";
 import {ReportProvider} from "@/contexts/ReportContext";
+import {QueryProvider} from "@/contexts/QueryProvider";
 
 export const metadata: Metadata = {
     title: "AI Property Inspection",
@@ -59,7 +60,9 @@ export default async function RootLayout({
                 <SessionProvider session={session}>
                     {
                         session ? (
-                            <ReportProvider>{children}</ReportProvider>
+                            <QueryProvider>
+                                <ReportProvider>{children}</ReportProvider>
+                            </QueryProvider>
                         ) : <LoginClient/>
                     }
                 </SessionProvider>

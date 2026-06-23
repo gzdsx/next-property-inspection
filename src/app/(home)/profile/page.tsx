@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/field"
 import {Button} from "@/components/ui/button";
 import {useEffect, useState} from "react";
-import {apiGet, apiPost, apiPut} from "@/lib/api";
+import {apiGet, apiPut} from "@/lib/api";
 import {toast} from "sonner";
 import {Spinner} from "@/components/ui/spinner";
 import {useSession} from "next-auth/react";
@@ -29,7 +29,7 @@ export default function Home() {
     const handleSubmitCompany = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.nativeEvent.preventDefault();
         setCompanySubmiting(true);
-        apiPut('/auth/company', company).then(response => {
+        apiPut('/company', company).then(response => {
             toast.success('Company profile updated successfully');
         }).catch(reason => {
             toast.error('Company profile update failed');
@@ -39,19 +39,19 @@ export default function Home() {
     }
 
     const fetchCompany = () => {
-        apiGet('/auth/company').then(response => {
-            setCompany({...response.data});
+        apiGet('/company').then(response => {
+            setCompany({...response});
         });
     }
 
     const handleSubmitUser = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.nativeEvent.preventDefault();
         setUserSubmiting(true);
-        apiPut('/auth/profile', currentUser).then(response => {
+        apiPut('/me/profile', currentUser).then(response => {
             toast.success('Profile updated successfully');
             updateSession({
                 ...session?.user,
-                ...response.data,
+                ...response,
                 updateAt: new Date().toISOString()
             })
         }).catch(reason => {

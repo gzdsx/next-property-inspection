@@ -76,7 +76,7 @@ export function useChunkUpload(options: UseChunkUploadOptions = {}) {
             await Promise.all(chunkTasks);
 
             // ➡️ 步骤 3: 呼叫 Laravel 合体
-            const response = await apiPost(`/file/chunk/merge`, {
+            const videoData = await apiPost(`/file/chunk/merge`, {
                 file_id: fileId,
                 file_ext: getFileExtension(file),
                 save_dir: options.saveDir || 'videos'
@@ -86,7 +86,7 @@ export function useChunkUpload(options: UseChunkUploadOptions = {}) {
 
             setUploadStatus('success');
             // 假设你的 apiPost 返回的 AxiosResponse 或自定义格式中 data 包含结果
-            return response.data?.url || response.url;
+            return videoData;
 
         } catch (error: any) {
             if (error.name === 'AbortError' || error.message === 'canceled') {

@@ -11,7 +11,7 @@ export function useInspectionQuery(id: number | string) {
     });
 }
 
-export function useInspectionsQuery(params?: any) {
+export function useInspectionListQuery(params?: any) {
     return useQuery({
         queryKey: ['inspections', params],
         queryFn: () => apiGet(`/inspections`, params),

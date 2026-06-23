@@ -2,7 +2,7 @@
 
 import {useLanguage} from '@/contexts/LanguageContext';
 import {useRef, useEffect, useState, useCallback} from 'react';
-import {useRouter} from 'next/navigation';
+import {useParams, useRouter} from 'next/navigation';
 import {
     ArrowLeft, Video, VideoOff, Mic, MicOff, Square,
     CheckCircle, Flag, RotateCcw, FileDown, Eye, Trash2, X
@@ -73,6 +73,8 @@ const getGlossaryBadgeStyle = (condition: string, isManualFlag?: boolean) => {
 export default function InspectionLive() {
     const {t, language, setLanguage} = useLanguage();
     const router = useRouter();
+    const params = useParams();
+    const inspectionId = params.id as string;
 
     const videoRef = useRef<HTMLVideoElement>(null);
     // ---------------------------------------------------------------------------
@@ -693,7 +695,7 @@ export default function InspectionLive() {
                     <div
                         className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black via-black to-transparent">
                         <button
-                            onClick={uploadToServer}
+                            onClick={() => uploadToServer(inspectionId)}
                             className="w-full py-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold text-lg shadow-lg shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95 transition-transform"
                         >
                             <CloudUpload className="w-6 h-6"/>

@@ -85,7 +85,7 @@ export async function apiFetch(endpoint: string, {data, params, ...options}: Fet
         }
 
         if (!response.ok) {
-            console.error('response:',response);
+            //console.error('response:',response);
             const errorData = await response.json();
             //console.log('response:',errorData);
             throw {

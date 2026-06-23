@@ -43,12 +43,12 @@ const PropertyCard = ({property, onDelete}: PropertyCardProps) => {
     }
     return (
         <div className="glass-panel glass-panel-hover property-card">
-            <div className="property-image-wrapper" style={{height: "160px"}}>
+            <div className="property-image-wrapper aspect-4/3!">
                 <Link href={`/property/${property.id}`}>
                     <img
                         src={property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80"}
                         alt={'Property Cover'}
-                        className="property-image"
+                        className="property-image aspect-4/3 object-cover!"
                         onError={(e) => {
                             e.currentTarget.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=400&q=80";
                         }}

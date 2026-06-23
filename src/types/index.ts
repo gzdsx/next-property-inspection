@@ -63,6 +63,18 @@ export type InspectionVideo = {
     [key: string]: any;
 }
 
+export type User = {
+    id: number;
+    name: string;
+    email: string;
+    phone_number: string;
+    user_type: string;
+    avatar: string;
+    created_at: string;
+    updated_at: string;
+    [key: string]: any;
+}
+
 export type InspectionItem = {
     id: number;
     video_id: number;
