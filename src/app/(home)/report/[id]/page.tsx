@@ -460,6 +460,15 @@ export default function ReportPage() {
         }
     };
 
+    const handleReanalyze = () => {
+        spinner.show();
+        apiPost(`/inspections/${id}/analyze`).then(response => {
+            refetch();
+        }).finally(() => {
+            spinner.hide();
+        });
+    }
+
     // ─── Loading ──────────────────────────────────────────────────────────────
 
     if ((isFetching && !isRefetching) || !inspection) {
@@ -516,6 +525,12 @@ export default function ReportPage() {
                                 className={inspection?.status === 'completed' ? 'badge badge-success' : 'badge badge-warning'}>
                                 {capitalize(inspection?.status || '')}
                             </span>
+                            {
+                                inspection?.status === 'failed' && (
+                                    <span className={'badge badge-success cursor-pointer'}
+                                          onClick={handleReanalyze}>Reanalyze</span>
+                                )
+                            }
                         </div>
                     </div>
 
