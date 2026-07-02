@@ -58,7 +58,7 @@ export default function InspectionEditPage() {
         onFileCompleted: (file, videoData) => {
             apiPost(`/inspections/${id}/videos`, {
                 src: videoData.path,
-                chunk_index: file.chunk_index,
+                chunk_index: file.file_index,
                 status: 'pending'
             });
         },
@@ -103,7 +103,7 @@ export default function InspectionEditPage() {
             router.push(`/report/${id}`);
         } catch (err: any) {
             toast.error(err.message || 'Video merge failed');
-        }finally {
+        } finally {
             setIsMerging(false);
         }
     }
@@ -226,7 +226,8 @@ export default function InspectionEditPage() {
             <div className="flex flex-col gap-6">
                 {/* ── Property Info ────────────────────────────────────────── */}
                 <div className="glass-panel" style={{borderRadius: '16px', overflow: 'hidden'}}>
-                    <div className="px-6 py-4 flex items-center justify-between" style={{borderBottom: '1px solid var(--panel-border)'}}>
+                    <div className="px-6 py-4 flex items-center justify-between"
+                         style={{borderBottom: '1px solid var(--panel-border)'}}>
                         <h2 className="text-base font-bold flex items-center gap-2">
                             <FileText className="w-4 h-4 text-primary!" style={{color: 'var(--primary)'}}/>
                             Inspector Notes

@@ -16,7 +16,7 @@ export interface UploadFileItem {
     progress: number;
     url?: string;
     error?: string;
-    chunk_index: number;
+    file_index: number;
 }
 
 interface MergerdVideo {
@@ -81,7 +81,7 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
             file,
             status: 'pending' as const,
             progress: 0,
-            chunk_index: index,
+            file_index: index,
         }));
         setFiles(prev => [...prev, ...items]);
     }, []);
@@ -201,10 +201,10 @@ export function useVideoUploadQueue(options: UseVideoUploadQueueOptions = {}) {
         setIsUploading(true);
         const fileLimit = pLimit(maxConcurrentFiles);
 
-        const tasks = pendingFiles.map(item =>
+        const tasks = pendingFiles.map((item, index) =>
             fileLimit(async () => {
                 try {
-                    await uploadSingleFile(item);
+                    await uploadSingleFile({...item, file_index: index});
                 } catch (error: any) {
                     const errorMsg = error.name === 'AbortError' ? 'Cancelled' : (error.message || 'Upload failed');
                     updateFile(item.id, {status: 'error', error: errorMsg});
