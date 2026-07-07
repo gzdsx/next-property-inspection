@@ -9,7 +9,7 @@
 		"start": "next start",
 		"lint": "next lint",
 		"push2github": "git add . && git commit -m 'backup' && git push --set-upstream origin main",
-		"sync": "git pull && next build"
+		"update": "git pull && next build && pm2 reload 2 --update-env"
 	},
 	"dependencies": {
 		"@ant-design/icons": "^5.5.2",
