@@ -1,8 +1,9 @@
 'use client';
 
 import {useEffect, useState} from "react";
+import Link from "next/link";
 import PropertyGrid from "@/components/frontend/PropertyGrid";
-import {SlidersHorizontal} from "lucide-react";
+import {ChevronRight, SlidersHorizontal} from "lucide-react";
 import {usePropertyListQuery} from "@/queries/property";
 
 const PropertyClient = () => {
@@ -44,9 +45,12 @@ const PropertyClient = () => {
             <div className={'flex items-center justify-between mb-4'}>
                 <h2 className={'font-bold m-0'}>
                     All properties
-                    <span className={'text-sm text-gray-500 font-normal'}>({properties.length})</span>
+                    <span className={'text-sm text-gray-500 font-normal ml-1'}>({properties.length})</span>
                 </h2>
                 <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
+                    <Link href="/properties" className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 mr-2">
+                        View more <ChevronRight size={14}/>
+                    </Link>
                     <button onClick={resetPropFilters}
                             className={'text-sm text-red-500 font-normal cursor-pointer border-0 px-4 py-2'}>
                         Clear filters

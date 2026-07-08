@@ -1,6 +1,8 @@
 'use client';
 
 import {useEffect, useState} from "react";
+import Link from "next/link";
+import {ChevronRight} from "lucide-react";
 import ReportCard from "@/components/frontend/ReportCard";
 import {useConfirm, useSpinner} from "@/contexts/AppContext";
 import {useDeleteInspectionMutation, useInspectionListQuery} from "@/queries/inspection";
@@ -47,10 +49,15 @@ const ReportClient = () => {
 
     return (
         <section className={'mb-10'}>
-            <h2 className={'font-bold mb-4'}>
-                <span>Recent inspections</span>
-                <span className={'font-normal text-gray-400 text-sm'}>({reports.length})</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold m-0">
+                    Recent inspections
+                    <span className="font-normal text-gray-400 text-sm ml-1">({reports.length})</span>
+                </h2>
+                <Link href="/inspections" className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300">
+                    View more <ChevronRight size={14}/>
+                </Link>
+            </div>
 
             <div className="property-grid">
                 {reports.map((report: any) => (

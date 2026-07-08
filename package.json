@@ -35,6 +35,7 @@
 		"@tiptap/starter-kit": "^3.22.3",
 		"ali-oss": "^6.x",
 		"antd": "^6.3.1",
+		"better-auth": "^1.6.23",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"embla-carousel-autoplay": "^8.6.0",

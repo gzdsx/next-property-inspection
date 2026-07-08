@@ -206,7 +206,7 @@ export default function ModalMediaPicker({open, onClose, onSelect, multiple = fa
     return (
         <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
             <DialogContent
-                className="h-[85vh]! flex flex-col w-[80vw]! max-w-none! z-999!"
+                className="h-[85vh]! bg-[#0e131e]! text-gray-300! flex flex-col w-[80vw]! max-w-none! z-999!"
                 style={{background: 'var(--background)', border: '1px solid var(--panel-border)', overflow: 'hidden'}}
             >
                 <DialogHeader>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, {useState} from "react";
 import {signOut} from "next-auth/react";
 import {usePathname, useRouter} from "next/navigation";
-import {BarChart3, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Users, Video} from "lucide-react";
+import {BarChart3, Building2, ClipboardList, HomeIcon, LogOut, Moon, Settings, Sparkles, Sun, Users, Video} from "lucide-react";
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
@@ -18,6 +18,8 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
 
     const navItems = [
         {href: '/', icon: HomeIcon, title: 'Dashboard'},
+        {href: '/properties', icon: Building2, title: 'Properties'},
+        {href: '/inspections', icon: ClipboardList, title: 'Inspections'},
         {href: '/staff', icon: Users, title: 'Staff Management'},
         {href: '/analytics', icon: BarChart3, title: 'Analytics'},
         {href: '/profile', icon: Settings, title: 'Profile'},
