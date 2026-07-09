@@ -721,7 +721,7 @@ export function useGeminiLive() {
 
             await apiPut(`/inspections/${inspectionId}`, {
                 status: 'completed',
-                video_url: videoData.url,
+                video_url: videoData.path,
                 video_type: 'video/webm',
                 video_status: 'draft'
             });
