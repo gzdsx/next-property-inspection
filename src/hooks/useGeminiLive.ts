@@ -719,13 +719,12 @@ export function useGeminiLive() {
                 file_type: 'video/webm'
             });
 
-            const formData = new FormData();
-            formData.append('status', 'completed');
-            formData.append('video_url', videoData.url);
-            formData.append('video_type', 'video/webm');
-            formData.append('video_status', 'draft');
-
-            await apiPut(`/inspections/${inspectionId}`, formData);
+            await apiPut(`/inspections/${inspectionId}`, {
+                status: 'completed',
+                video_url: videoData.url,
+                video_type: 'video/webm',
+                video_status: 'draft'
+            });
             await apiPost(`/inspections/${inspectionId}/items/batch`, {records: recordsRef.current});
 
             setUploadReportId(inspectionId);
