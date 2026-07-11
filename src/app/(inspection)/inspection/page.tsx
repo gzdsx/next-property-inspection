@@ -10,6 +10,7 @@ import type {InspectorProfile} from '@/lib/generateReport';
 import LangSwitchButton from "@/components/frontend/LangSwitchButton";
 import {useLocale, useTranslations} from "@/contexts/LocaleContext";
 import InspectionForm from "@/components/frontend/InspectionForm";
+import {apiPost} from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

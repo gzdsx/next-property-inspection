@@ -98,6 +98,8 @@ export default function ReportPage() {
     const [renamingRoom, setRenamingRoom] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
     const [isRenaming, setIsRenaming] = useState(false);
+    const [addingRoom, setAddingRoom] = useState(false);
+    const [newRoomName, setNewRoomName] = useState('');
     const intervalRef = useRef<any>(null);
 
     const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
@@ -308,6 +310,16 @@ export default function ReportPage() {
         };
         setItems(prev => [...prev, newItem]);
         startEditItem(newItem);
+    };
+
+    // ─── Add new room ─────────────────────────────────────────────────────────
+
+    const handleAddRoom = () => {
+        const name = newRoomName.trim();
+        if (!name) return;
+        setAddingRoom(false);
+        setNewRoomName('');
+        addItem(name);
     };
 
     // ─── Room rename ──────────────────────────────────────────────────────────
@@ -670,7 +682,16 @@ export default function ReportPage() {
                 {/* ── Right: Inspection Items ─────────────────────────────── */}
                 <section className="flex flex-col flex-1 p-6 overflow-y-auto bg-white/1.5">
                     <div className="mb-5">
-                        <h2 className="text-xl font-black tracking-tight">Inspection Items</h2>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-black tracking-tight">Inspection Items</h2>
+                            <button
+                                onClick={() => { setNewRoomName(''); setAddingRoom(true); }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none"
+                                style={{background: 'var(--primary-bg)', color: 'var(--primary)'}}
+                            >
+                                <Plus size={13}/> Add Room
+                            </button>
+                        </div>
                         <p className="text-xs text-(--text-muted) mt-1">
                             {items.length} items in {roomGroups.length} room{roomGroups.length !== 1 ? 's' : ''}
                         </p>
@@ -947,6 +968,29 @@ export default function ReportPage() {
                     </div>
                 </section>
             </div>
+
+            {/* Add Room Dialog */}
+            <Dialog open={addingRoom} onOpenChange={open => { if (!open) setAddingRoom(false); }}>
+                <DialogContent className="sm:max-w-sm" style={{background: 'var(--background)', border: '1px solid var(--panel-border)', overflow: 'hidden'}}>
+                    <DialogHeader>
+                        <DialogTitle>Add New Room</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <input
+                            value={newRoomName}
+                            onChange={e => setNewRoomName(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleAddRoom(); }}
+                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                            placeholder="e.g. Living Room, Bedroom 1..."
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setAddingRoom(false)}>Cancel</Button>
+                        <Button onClick={handleAddRoom} disabled={!newRoomName.trim()}>Add Room</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Rename Room Dialog */}
             <Dialog open={!!renamingRoom} onOpenChange={open => {

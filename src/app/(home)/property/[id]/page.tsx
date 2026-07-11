@@ -85,9 +85,6 @@ export default function PropertyDetailPage() {
                             <Pencil size={14}/>
                             Edit Property
                         </button>
-                        <div className="badge badge-success" style={{fontSize: "0.75rem", padding: "6px 12px"}}>
-                            Active Property Portfolio
-                        </div>
                     </div>
                 </div>
                 {isDuplicateAddress && (
