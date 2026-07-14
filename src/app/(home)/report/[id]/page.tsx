@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import {useRef, useState, useEffect, useMemo} from 'react';
+import {useRef, useState, useEffect, useMemo, useCallback} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import SignaturePad from '@/components/common/SignaturePad';
 import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
@@ -9,7 +9,11 @@ import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
     AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers, Camera,
+    GripVertical,
 } from 'lucide-react';
+import SortableProvider from '@/components/common/SortableProvider';
+import {useSortable} from '@dnd-kit/react/sortable';
+import {arrayMove} from '@dnd-kit/sortable';
 import ReactPlayer from 'react-player';
 import type {Inspection, InspectionItem} from '@/types';
 import {useTranslations} from "@/contexts/LocaleContext";
@@ -70,6 +74,15 @@ async function imageUrlToBase64(url: string): Promise<string> {
     });
 }
 
+function SortableRoomWrapper({id, index, children}: { id: string; index: number; children: React.ReactNode }) {
+    const {ref, isDragging} = useSortable({id, index, transition: {duration: 250, easing: 'ease'}});
+    return (
+        <div ref={ref} style={{opacity: isDragging ? 0.45 : 1, transition: 'opacity 0.15s'}}>
+            {children}
+        </div>
+    );
+}
+
 export default function ReportPage() {
     const {t} = useTranslations('inspection');
     const spinner = useSpinner();
@@ -100,6 +113,10 @@ export default function ReportPage() {
     const [isRenaming, setIsRenaming] = useState(false);
     const [addingRoom, setAddingRoom] = useState(false);
     const [newRoomName, setNewRoomName] = useState('');
+
+    const [roomOrder, setRoomOrder] = useState<string[]>([]);
+    const [capturingItemId, setCapturingItemId] = useState<number | null>(null);
+    const capturingItemIdRef = useRef<number | null>(null);
     const intervalRef = useRef<any>(null);
 
     const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
@@ -132,6 +149,27 @@ export default function ReportPage() {
         onError: () => {
             toast.error('Failed to upload cover image');
         }
+    });
+
+    const {mutate: uploadItemImage} = useCreateMaterialMutation({
+        onSuccess: (data: any) => {
+            const itemId = capturingItemIdRef.current;
+            if (itemId !== null) {
+                apiPut(`/inspections/${id}/items/${itemId}`, {image: data.src})
+                    .then(() => {
+                        setItems(prev => prev.map(i => i.id === itemId ? {...i, image: data.src} : i));
+                        toast.success('Item image saved');
+                    })
+                    .catch(() => toast.error('Failed to save item image'));
+                capturingItemIdRef.current = null;
+            }
+            setCapturingItemId(null);
+        },
+        onError: () => {
+            toast.error('Failed to upload item image');
+            setCapturingItemId(null);
+            capturingItemIdRef.current = null;
+        },
     });
 
     useEffect(() => {
@@ -168,6 +206,26 @@ export default function ReportPage() {
             .map(([name, list]) => ({name, items: list.sort((a, b) => a.elapsed_seconds - b.elapsed_seconds)}))
             .sort((a, b) => (a.items[0]?.elapsed_seconds || 0) - (b.items[0]?.elapsed_seconds || 0));
     }, [items]);
+
+    // Keep roomOrder in sync: preserve custom order, append new rooms, remove deleted ones
+    useEffect(() => {
+        setRoomOrder(prev => {
+            const existing = new Set(prev);
+            const current = roomGroups.map(g => g.name);
+            const currentSet = new Set(current);
+            const kept = prev.filter(n => currentSet.has(n));
+            const added = current.filter(n => !existing.has(n));
+            return [...kept, ...added];
+        });
+    }, [roomGroups]);
+
+    const sortedRoomGroups = useMemo(() => {
+        if (roomOrder.length === 0) return roomGroups;
+        const orderMap = new Map(roomOrder.map((name, i) => [name, i]));
+        return [...roomGroups].sort((a, b) =>
+            (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999)
+        );
+    }, [roomGroups, roomOrder]);
 
     const conditionStats = useMemo(() => {
         const stats = {good: 0, fair: 0, poor: 0};
@@ -351,6 +409,7 @@ export default function ReportPage() {
                 }
                 return next;
             });
+            setRoomOrder(prev => prev.map(n => n === renamingRoom ? renameValue.trim() : n));
             setRenamingRoom(null);
             toast.success('Room renamed');
         } catch (err: any) {
@@ -359,6 +418,48 @@ export default function ReportPage() {
             setIsRenaming(false);
         }
     };
+
+    // ─── Room sort ────────────────────────────────────────────────────────────
+
+    const handleRoomSortEnd = useCallback((oldIndex: number, newIndex: number) => {
+        setRoomOrder(prev => arrayMove(prev, oldIndex, newIndex));
+    }, []);
+
+    // ─── Item image capture ────────────────────────────────────────────────────
+
+    const handleCaptureItemImage = useCallback(async (item: InspectionItem) => {
+        const video = playerRef.current;
+        if (!video) return;
+
+        capturingItemIdRef.current = item.id;
+        setCapturingItemId(item.id);
+
+        if (Math.abs(video.currentTime - item.elapsed_seconds) > 0.1) {
+            video.currentTime = item.elapsed_seconds;
+            await new Promise<void>(resolve => {
+                video.addEventListener('seeked', () => resolve(), {once: true});
+            });
+        }
+
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas not supported');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+                if (!blob) { setCapturingItemId(null); capturingItemIdRef.current = null; return; }
+                const fd = new FormData();
+                fd.append('file', blob, `item_${item.id}_${Date.now()}.jpg`);
+                uploadItemImage(fd as any);
+            }, 'image/jpeg', 0.85);
+        } catch (err: any) {
+            toast.error(err.message || 'Capture failed');
+            setCapturingItemId(null);
+            capturingItemIdRef.current = null;
+        }
+    }, [uploadItemImage]);
 
     // ─── Capture cover ─────────────────────────────────────────────────────────
 
@@ -722,7 +823,7 @@ export default function ReportPage() {
 
                     {/* Room groups */}
                     <div className="flex-1 flex flex-col gap-3 pb-5">
-                        {roomGroups.length === 0 && (
+                        {sortedRoomGroups.length === 0 && (
                             <div className="glass-panel p-10 text-center text-(--text-muted)">
                                 <FileVideo size={32} className="mx-auto mb-3 opacity-40"/>
                                 <p className="text-sm font-bold">No inspection items yet</p>
@@ -730,17 +831,23 @@ export default function ReportPage() {
                             </div>
                         )}
 
-                        {roomGroups.map((group, groupIdx) => {
+                        <SortableProvider onSortEnd={handleRoomSortEnd}>
+                        {sortedRoomGroups.map((group, groupIdx) => {
                             const isExpanded = expandedRooms.has(group.name);
                             const roomColor = ROOM_COLORS[groupIdx % ROOM_COLORS.length];
                             const issueCount = group.items.filter(i => i.severity && i.severity.toLowerCase() !== '').length;
 
                             return (
-                                <div key={group.name} className="glass-panel overflow-hidden">
+                                <SortableRoomWrapper key={group.name} id={group.name} index={groupIdx}>
+                                <div className="glass-panel overflow-hidden mb-0">
                                     <div
-                                        className="flex items-center gap-2.5 px-4 py-3.5"
+                                        className="flex items-center gap-2 px-3 py-3.5"
                                         style={{borderLeft: `4px solid ${roomColor}`}}
                                     >
+                                        {/* Drag handle */}
+                                        <div className="shrink-0 cursor-grab active:cursor-grabbing text-(--text-muted) opacity-40 hover:opacity-80 transition-opacity px-0.5">
+                                            <GripVertical size={15}/>
+                                        </div>
                                         <div
                                             onClick={() => toggleRoom(group.name)}
                                             className="group/room flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
@@ -897,7 +1004,7 @@ export default function ReportPage() {
                                                 return (
                                                     <div
                                                         key={item.id}
-                                                        className="group flex items-center gap-3 py-2.5 px-4 pl-7.5 border-b border-white/8 text-[0.85rem] hover:bg-white/[0.02] transition-colors"
+                                                        className="group flex items-center gap-3 py-2 px-4 pl-7.5 border-b border-white/8 text-[0.85rem] hover:bg-white/[0.02] transition-colors"
                                                     >
                                                         <button
                                                             onClick={() => handleSeekItem(item.elapsed_seconds)}
@@ -906,24 +1013,45 @@ export default function ReportPage() {
                                                             <Play size={9} className="fill-blue-400"/>
                                                             {formatTime(item.elapsed_seconds)}
                                                         </button>
+
+                                                        {/* Item thumbnail */}
+                                                        {item.image && (
+                                                            <img
+                                                                src={item.image}
+                                                                alt=""
+                                                                className="shrink-0 w-8 h-8 rounded-md object-cover border border-white/10 cursor-pointer"
+                                                                onClick={() => window.open(item.image, '_blank')}
+                                                            />
+                                                        )}
+
                                                         <div className="flex-1 min-w-0">
-                                                            <span
-                                                                className="font-bold text-foreground">{item.item_name}</span>
+                                                            <span className="font-bold text-foreground">{item.item_name}</span>
                                                             {item.description && (
-                                                                <span
-                                                                    className="text-(--text-muted) ml-2 text-xs">{item.description}</span>
+                                                                <span className="text-(--text-muted) ml-2 text-xs">{item.description}</span>
                                                             )}
                                                         </div>
                                                         {sv && (
-                                                            <span
-                                                                className={`shrink-0 text-[0.65rem] font-bold px-2 py-0.5 rounded-md ${sv.bg} ${sv.text}`}>
+                                                            <span className={`shrink-0 text-[0.65rem] font-bold px-2 py-0.5 rounded-md ${sv.bg} ${sv.text}`}>
                                                                 {item.severity}
                                                             </span>
                                                         )}
-                                                        <span
-                                                            className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
+                                                        <span className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
                                                             {item.condition}
                                                         </span>
+                                                        {/* Screenshot button — only when video is available */}
+                                                        {(inspection?.video_status === 'transcoded' || inspection?.video_status === 'uploded') && (
+                                                            <button
+                                                                onClick={() => handleCaptureItemImage(item)}
+                                                                disabled={capturingItemId !== null}
+                                                                title="Capture frame as item image"
+                                                                className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-[var(--text-muted)] cursor-pointer hover:text-amber-400 disabled:opacity-30"
+                                                            >
+                                                                {capturingItemId === item.id
+                                                                    ? <Loader2 size={12} className="animate-spin"/>
+                                                                    : <Camera size={12}/>
+                                                                }
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => startEditItem(item)}
                                                             className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-[var(--text-muted)] cursor-pointer hover:text-blue-400"
@@ -936,8 +1064,10 @@ export default function ReportPage() {
                                         </div>
                                     )}
                                 </div>
+                                </SortableRoomWrapper>
                             );
                         })}
+                        </SortableProvider>
                     </div>
 
                     {/* Bottom actions */}
