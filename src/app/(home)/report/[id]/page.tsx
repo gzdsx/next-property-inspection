@@ -9,13 +9,13 @@ import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
     AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers, Camera,
-    GripVertical,
+    GripVertical, Clipboard, ClipboardPaste,
 } from 'lucide-react';
 import SortableProvider from '@/components/common/SortableProvider';
 import {useSortable} from '@dnd-kit/react/sortable';
 import {arrayMove} from '@dnd-kit/sortable';
 import ReactPlayer from 'react-player';
-import type {Inspection, InspectionItem} from '@/types';
+import type {Inspection, InspectionItem, InspectionRoom} from '@/types';
 import {useTranslations} from "@/contexts/LocaleContext";
 import {capitalize} from "@/lib/utils";
 import {apiPost, apiPut, apiDelete} from "@/lib/api";
@@ -25,7 +25,7 @@ import {Button} from "@/components/ui/button";
 import {toast} from 'sonner';
 import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspection";
 import dayjs from "dayjs";
-import {useSpinner} from "@/contexts/AppContext";
+import {useConfirm, useSpinner} from "@/contexts/AppContext";
 import {useCreateMaterialMutation} from "@/queries/material";
 
 const CONDITION_STYLE: Record<string, { bg: string; text: string }> = {
@@ -85,14 +85,16 @@ function SortableRoomWrapper({id, index, children}: { id: string; index: number;
 
 export default function ReportPage() {
     const {t} = useTranslations('inspection');
-    const spinner = useSpinner();
     const params = useParams();
     const router = useRouter();
+    const confirm = useConfirm();
+    const spinner = useSpinner();
     const id = params.id as string;
     const playerRef = useRef<HTMLVideoElement>(null);
 
     const [inspection, setInspection] = useState<Inspection | null>(null);
-    const [items, setItems] = useState<InspectionItem[]>([]);
+    const [rooms, setRooms] = useState<InspectionRoom[]>([]);
+    //const [items, setItems] = useState<InspectionItem[]>([]);
 
     const [showSignaturePad, setShowSignaturePad] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -101,25 +103,35 @@ export default function ReportPage() {
 
     const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
     const [editingItemId, setEditingItemId] = useState<number | null>(null);
-    const [editForm, setEditForm] = useState({
+    const [editForm, setEditForm] = useState<InspectionItem>({
         item_name: '',
         description: '',
         condition: '',
         severity: '',
-        elapsed_seconds: 0
+        elapsed_seconds: 0,
+        image: ''
     });
-    const [renamingRoom, setRenamingRoom] = useState<string | null>(null);
+    const [copiedItem, setCopiedItem] = useState<InspectionItem | null>(null);
+    const [editingRoom, setEditingRoom] = useState<InspectionRoom | null>(null);
     const [renameValue, setRenameValue] = useState('');
-    const [isRenaming, setIsRenaming] = useState(false);
     const [addingRoom, setAddingRoom] = useState(false);
     const [newRoomName, setNewRoomName] = useState('');
+    const [isSavingRoom, setIsSavingRoom] = useState(false);
+    const [isSavingItem, setIsSavingItem] = useState(false);
 
-    const [roomOrder, setRoomOrder] = useState<string[]>([]);
-    const [capturingItemId, setCapturingItemId] = useState<number | null>(null);
-    const capturingItemIdRef = useRef<number | null>(null);
     const intervalRef = useRef<any>(null);
 
     const {data: serverData, isFetching, isRefetching, refetch} = useInspectionQuery(id);
+
+    useEffect(() => {
+        if (!isFetching && serverData) {
+            setInspection(serverData);
+            setRooms(serverData.rooms || []);
+            setIsSigned(!!serverData.signature);
+            setExpandedRooms(new Set(serverData.rooms.map((r: any) => r.name)));
+        }
+    }, [isFetching, serverData]);
+
     const {mutate: updateInspection} = useUpdateInspectionMutation({
         onMutate: () => {
             spinner.show();
@@ -151,35 +163,6 @@ export default function ReportPage() {
         }
     });
 
-    const {mutate: uploadItemImage} = useCreateMaterialMutation({
-        onSuccess: (data: any) => {
-            const itemId = capturingItemIdRef.current;
-            if (itemId !== null) {
-                apiPut(`/inspections/${id}/items/${itemId}`, {image: data.src})
-                    .then(() => {
-                        setItems(prev => prev.map(i => i.id === itemId ? {...i, image: data.src} : i));
-                        toast.success('Item image saved');
-                    })
-                    .catch(() => toast.error('Failed to save item image'));
-                capturingItemIdRef.current = null;
-            }
-            setCapturingItemId(null);
-        },
-        onError: () => {
-            toast.error('Failed to upload item image');
-            setCapturingItemId(null);
-            capturingItemIdRef.current = null;
-        },
-    });
-
-    useEffect(() => {
-        if (!isFetching && serverData) {
-            setInspection(serverData);
-            setItems(serverData.items || []);
-            setIsSigned(!!serverData.signature);
-        }
-    }, [isFetching, serverData]);
-
     useEffect(() => {
         if (serverData.status !== 'completed') {
             intervalRef.current = setInterval(() => {
@@ -193,42 +176,12 @@ export default function ReportPage() {
         };
     }, [serverData]);
 
-    // ─── Derived ──────────────────────────────────────────────────────────────
-
-    const roomGroups = useMemo(() => {
-        const groups = new Map<string, InspectionItem[]>();
-        for (const item of items) {
-            const room = item.room_name || 'Unknown';
-            if (!groups.has(room)) groups.set(room, []);
-            groups.get(room)!.push(item);
-        }
-        return Array.from(groups.entries())
-            .map(([name, list]) => ({name, items: list.sort((a, b) => a.elapsed_seconds - b.elapsed_seconds)}))
-            .sort((a, b) => (a.items[0]?.elapsed_seconds || 0) - (b.items[0]?.elapsed_seconds || 0));
-    }, [items]);
-
-    // Keep roomOrder in sync: preserve custom order, append new rooms, remove deleted ones
-    useEffect(() => {
-        setRoomOrder(prev => {
-            const existing = new Set(prev);
-            const current = roomGroups.map(g => g.name);
-            const currentSet = new Set(current);
-            const kept = prev.filter(n => currentSet.has(n));
-            const added = current.filter(n => !existing.has(n));
-            return [...kept, ...added];
-        });
-    }, [roomGroups]);
-
-    const sortedRoomGroups = useMemo(() => {
-        if (roomOrder.length === 0) return roomGroups;
-        const orderMap = new Map(roomOrder.map((name, i) => [name, i]));
-        return [...roomGroups].sort((a, b) =>
-            (orderMap.get(a.name) ?? 999) - (orderMap.get(b.name) ?? 999)
-        );
-    }, [roomGroups, roomOrder]);
+    const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
+    const [videoDuration, setVideoDuration] = useState(0);
 
     const conditionStats = useMemo(() => {
         const stats = {good: 0, fair: 0, poor: 0};
+        const items = rooms.flatMap((r) => r.items);
         for (const item of items) {
             const c = (item.condition || '').toLowerCase();
             if (c.includes('very poor') || c.includes('poor')) stats.poor++;
@@ -236,43 +189,41 @@ export default function ReportPage() {
             else stats.good++;
         }
         return stats;
-    }, [items]);
+    }, [rooms]);
 
     const roomSegments = useMemo(() => {
-        if (items.length === 0) return [];
-        const roomMap: Record<string, { start: number; end: number; good: number; fair: number; poor: number }> = {};
-        for (const item of items) {
-            const room = item.room_name || 'General';
-            const sec = item.elapsed_seconds || 0;
-            const c = (item.condition || '').toLowerCase();
-            let rate: 'good' | 'fair' | 'poor' = 'good';
-            if (c.includes('very poor') || c.includes('poor')) rate = 'poor';
-            else if (c.includes('fair')) rate = 'fair';
+        if (rooms.length === 0 || videoDuration === 0) return [];
+        const segments = rooms.map((room, idx) => {
+            const seconds = room.items.map((item: InspectionItem) => item.elapsed_seconds || 0);
+            const conditions = room.items.map((item: InspectionItem) => (item.condition || '').toLowerCase());
 
-            if (!roomMap[room]) roomMap[room] = {start: sec, end: sec + 5, good: 0, fair: 0, poor: 0};
-            roomMap[room].start = Math.min(roomMap[room].start, sec);
-            roomMap[room].end = Math.max(roomMap[room].end, sec + 5);
-            roomMap[room][rate]++;
-        }
-        const segs = Object.entries(roomMap)
-            .map(([name, d], idx) => ({
-                name,
-                start: d.start,
-                end: d.end,
+            const start = Math.ceil(Math.min(...seconds));
+            const goodCount = conditions.filter((c: string) => c.includes('good')).length;
+            const fairCount = conditions.filter((c: string) => c.includes('fair')).length;
+            const poorCount = conditions.filter((c: string) => (c.includes('very poor') || c.includes('poor'))).length;
+
+            return {
+                name: room.name,
+                start,
+                end: videoDuration,
+                goodCount,
+                fairCount,
+                poorCount,
                 color: ROOM_COLORS[idx % ROOM_COLORS.length],
-                goodCount: d.good,
-                fairCount: d.fair,
-                poorCount: d.poor,
-            }))
-            .sort((a, b) => a.start - b.start);
-        for (let i = 0; i < segs.length - 1; i++) {
-            segs[i].end = segs[i + 1].start;
-        }
-        return segs;
-    }, [items]);
+            }
+        });
 
-    const [activeSegmentIndex, setActiveSegmentIndex] = useState<number | null>(null);
-    const [videoDuration, setVideoDuration] = useState(0);
+        for (let i = 0; i < segments.length - 1; i++) {
+            segments[i].end = segments[i + 1].start;
+        }
+
+        return segments;
+    }, [rooms, videoDuration]);
+
+    const segmentDuration = useMemo(() => {
+        if (roomSegments.length === 0) return 0;
+        return roomSegments.map((s) => s.end - s.start).reduce((a, b) => a + b, 0);
+    }, [roomSegments]);
 
     useEffect(() => {
         const video = playerRef.current;
@@ -281,7 +232,9 @@ export default function ReportPage() {
         const onTime = () => {
             const cur = video.currentTime || 0;
             const idx = roomSegments.findIndex(seg => cur >= seg.start && cur <= seg.end);
-            if (idx !== -1) setActiveSegmentIndex(idx);
+            if (idx !== -1) {
+                setActiveSegmentIndex(idx);
+            }
         };
         video.addEventListener('loadedmetadata', onMeta);
         video.addEventListener('timeupdate', onTime);
@@ -296,10 +249,6 @@ export default function ReportPage() {
             roomSegments[roomSegments.length - 1].end = videoDuration;
         }
     }, [videoDuration, roomSegments]);
-
-    useEffect(() => {
-        setExpandedRooms(new Set(roomGroups.map(g => g.name)));
-    }, [roomGroups]);
 
     // ─── Item editing ──────────────────────────────────────────────────────────
 
@@ -318,55 +267,86 @@ export default function ReportPage() {
         setEditingItemId(null);
     };
 
-    const saveEditItem = async () => {
+    const saveEditItem = async (roomId: number) => {
         if (!editingItemId) return;
         try {
+            setIsSavingItem(true);
             if (editingItemId < 0) {
-                const created = await apiPost(`/inspections/${id}/items`, editForm);
-                setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...created} : i));
+                const newItem = await apiPost(`/inspections/${roomId}/items`, editForm);
+                setRooms(prevState => prevState.map(r => r.id === roomId ? {
+                    ...r,
+                    items: r.items.map((i: any) => i.id === editingItemId ? {...i, ...newItem} : i)
+                } : r));
             } else {
-                await apiPut(`/inspections/${id}/items/${editingItemId}`, editForm);
-                setItems(prev => prev.map(i => i.id === editingItemId ? {...i, ...editForm} : i));
+                await apiPut(`/inspections/${roomId}/items/${editingItemId}`, editForm);
+                setRooms(prevState => prevState.map(r => r.id === roomId ? {
+                    ...r,
+                    items: r.items.map((i: any) => i.id === editingItemId ? {...i, ...editForm} : i)
+                } : r));
             }
-            setEditingItemId(null);
+            //setEditingItemId(null);
             toast.success('Item saved');
         } catch (err: any) {
             toast.error(err.message || 'Failed to save item');
+        } finally {
+            setIsSavingItem(false);
         }
     };
 
-    const deleteItem = async (itemId: number) => {
+    const copyItem = async (item: InspectionItem) => {
+        setCopiedItem({...item});
+        toast.success('Item copied');
+    }
+
+    const pasteItem = (item: InspectionItem) => {
+        if (!copiedItem) return;
+        startEditItem({
+            id: item.id,
+            item_name: copiedItem.item_name,
+            description: copiedItem.description,
+            condition: copiedItem.condition,
+            severity: copiedItem.severity,
+            elapsed_seconds: copiedItem.elapsed_seconds,
+            image: copiedItem.image,
+        });
+    }
+
+    const deleteItem = async (roomId: number, itemId: number) => {
         if (itemId < 0) {
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            setRooms(prevState => prevState.map(r => r.id === roomId ? {
+                ...r,
+                items: r.items.filter((i: any) => i.id !== itemId)
+            } : r));
             setEditingItemId(null);
             return;
         }
         try {
+            spinner.show();
             await apiDelete(`/inspections/${id}/items/${itemId}`);
-            setItems(prev => prev.filter(i => i.id !== itemId));
+            setRooms(prevState => prevState.map(r => r.id === roomId ? {
+                ...r,
+                items: r.items.filter((i: any) => i.id !== itemId)
+            } : r));
             toast.success('Item deleted');
         } catch (err: any) {
             toast.error(err.message || 'Failed to delete item');
+        } finally {
+            spinner.hide();
         }
     };
 
-    const addItem = (roomName: string) => {
+    const addItem = (room: InspectionRoom) => {
         const elapsed = playerRef.current ? Math.round(playerRef.current.currentTime) : 0;
         const tempId = -Date.now();
         const newItem: InspectionItem = {
             id: tempId,
-            video_id: 0,
-            room_name: roomName,
             item_name: 'New Item',
             description: '',
             condition: 'Good',
             severity: '',
             elapsed_seconds: elapsed,
-            image: '',
-            created_at: '',
-            updated_at: '',
         };
-        setItems(prev => [...prev, newItem]);
+        setRooms(prevState => prevState.map(r => r.id === room.id ? {...r, items: [...r.items, newItem]} : r));
         startEditItem(newItem);
     };
 
@@ -375,64 +355,97 @@ export default function ReportPage() {
     const handleAddRoom = () => {
         const name = newRoomName.trim();
         if (!name) return;
-        setAddingRoom(false);
-        setNewRoomName('');
-        addItem(name);
+
+        setIsSavingRoom(true);
+        apiPost(`/inspections/${id}/rooms`, {name}).then(newRoom => {
+            setNewRoomName('');
+            setRooms(prevState => [...prevState, newRoom]);
+        }).catch(reason => {
+            toast.error(reason.message || 'Failed to add room');
+        }).finally(() => {
+            setAddingRoom(false);
+            setIsSavingRoom(false);
+        });
+    };
+
+    // ─── Delete Room ──────────────────────────────────────────────────────────
+
+    const handleDeleteRoom = (room: InspectionRoom) => {
+        confirm.open({
+            message: 'Are you sure to delete this room?',
+            onConfirm: () => {
+                spinner.show();
+                apiDelete(`/inspections/${id}/rooms/${room.id}`).then(() => {
+                    setRooms(prevState => prevState.filter(r => room.id !== r.id));
+                }).catch(reason => {
+                    toast.error(reason.message || 'Failed to delete room');
+                }).finally(() => {
+                    spinner.hide();
+                });
+            }
+        })
     };
 
     // ─── Room rename ──────────────────────────────────────────────────────────
 
-    const openRenameRoom = (roomName: string) => {
-        setRenamingRoom(roomName);
-        setRenameValue(roomName);
+    const openRenameRoom = (room: InspectionRoom) => {
+        setEditingRoom(room);
+        setRenameValue(room.name);
     };
 
     const handleRenameRoom = async () => {
-        if (!renamingRoom || !renameValue.trim() || renameValue === renamingRoom) {
-            setRenamingRoom(null);
+        if (!editingRoom || !renameValue.trim() || renameValue === editingRoom.name) {
+            setEditingRoom(null);
             return;
         }
-        setIsRenaming(true);
+        setIsSavingRoom(true);
         try {
-            await apiPost(`/inspections/${id}/items/rename-room`, {
-                old_name: renamingRoom,
-                new_name: renameValue.trim(),
+            await apiPut(`/inspections/${id}/rooms/${editingRoom.id}`, {
+                name: renameValue.trim(),
             });
-            setItems(prev => prev.map(i =>
-                i.room_name === renamingRoom ? {...i, room_name: renameValue.trim()} : i
+            setRooms(prev => prev.map(r =>
+                r.id === editingRoom.id ? {...r, name: renameValue.trim()} : r
             ));
             setExpandedRooms(prev => {
                 const next = new Set(prev);
-                if (next.has(renamingRoom)) {
-                    next.delete(renamingRoom);
+                if (next.has(editingRoom.name)) {
+                    next.delete(editingRoom.name);
                     next.add(renameValue.trim());
                 }
                 return next;
             });
-            setRoomOrder(prev => prev.map(n => n === renamingRoom ? renameValue.trim() : n));
-            setRenamingRoom(null);
+            setEditingRoom(null);
             toast.success('Room renamed');
         } catch (err: any) {
             toast.error(err.message || 'Failed to rename room');
         } finally {
-            setIsRenaming(false);
+            setIsSavingRoom(false);
         }
     };
 
     // ─── Room sort ────────────────────────────────────────────────────────────
 
     const handleRoomSortEnd = useCallback((oldIndex: number, newIndex: number) => {
-        setRoomOrder(prev => arrayMove(prev, oldIndex, newIndex));
-    }, []);
+        const newRooms = arrayMove(rooms, oldIndex, newIndex);
+        setRooms([...newRooms]);
+        apiPost(`/inspections/${id}/rooms/resort`, {
+            rooms: newRooms.map((r, i) => ({
+                id: r.id,
+                sort_num: i,
+            })),
+        }).catch(reason => {
+            toast.error(reason.message || 'Failed to sort rooms');
+        }).finally(() => {
+
+        });
+    }, [rooms]);
 
     // ─── Item image capture ────────────────────────────────────────────────────
 
-    const handleCaptureItemImage = useCallback(async (item: InspectionItem) => {
+    const [capturingItemId, setCapturingItemId] = useState(null);
+    const handleCaptureItemImage = useCallback(async (roomId: number, item: InspectionItem) => {
         const video = playerRef.current;
         if (!video) return;
-
-        capturingItemIdRef.current = item.id;
-        setCapturingItemId(item.id);
 
         if (Math.abs(video.currentTime - item.elapsed_seconds) > 0.1) {
             video.currentTime = item.elapsed_seconds;
@@ -449,17 +462,29 @@ export default function ReportPage() {
             if (!ctx) throw new Error('Canvas not supported');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             canvas.toBlob((blob) => {
-                if (!blob) { setCapturingItemId(null); capturingItemIdRef.current = null; return; }
+                if (!blob) {
+                    setCapturingItemId(null);
+                    return;
+                }
                 const fd = new FormData();
                 fd.append('file', blob, `item_${item.id}_${Date.now()}.jpg`);
-                uploadItemImage(fd as any);
+
+                spinner.show('Saving image...');
+                apiPost(`/materials`, fd).then(response => {
+                    setRooms(prevState => prevState.map(r => r.id === roomId ? {
+                        ...r,
+                        items: r.items.map((i: any) => i.id === item.id ? {...i, image: response.src} : i)
+                    } : r));
+                    setEditForm(prevState => ({...prevState, image: response.src}));
+                }).finally(() => {
+                    spinner.hide();
+                });
             }, 'image/jpeg', 0.85);
         } catch (err: any) {
             toast.error(err.message || 'Capture failed');
             setCapturingItemId(null);
-            capturingItemIdRef.current = null;
         }
-    }, [uploadItemImage]);
+    }, [spinner]);
 
     // ─── Capture cover ─────────────────────────────────────────────────────────
 
@@ -553,7 +578,7 @@ export default function ReportPage() {
             generateInspectionReport({
                 address: property?.name || 'Inspection Report',
                 date: dateStr,
-                records: items.map(item => ({
+                records: rooms.map(item => ({
                     id: String(item.id),
                     room_name: item.room_name,
                     item_name: item.item_name,
@@ -574,12 +599,19 @@ export default function ReportPage() {
     };
 
     const handleReanalyze = () => {
-        spinner.show();
-        apiPost(`/inspections/${id}/analyze`).then(response => {
-            refetch();
-        }).finally(() => {
-            spinner.hide();
-        });
+        confirm.open({
+            title: 'Reanalyze Confirmation',
+            message: 'Are you sure to reanalyze this report?',
+            onConfirm: () => {
+                spinner.show();
+                apiPost(`/inspections/${id}/analyze`).then(() => {
+                    refetch();
+                    setInspection((prevState: any) => ({...prevState, status: 'analyzing'}));
+                }).finally(() => {
+                    spinner.hide();
+                });
+            }
+        })
     }
 
     // ─── Loading ──────────────────────────────────────────────────────────────
@@ -639,8 +671,8 @@ export default function ReportPage() {
                                 {capitalize(inspection?.status || '')}
                             </span>
                             {
-                                inspection?.status === 'failed' && (
-                                    <span className={'badge badge-success cursor-pointer'}
+                                (inspection?.status === 'failed' || inspection?.status === 'completed') && (
+                                    <span className={'badge badge-warning cursor-pointer'}
                                           onClick={handleReanalyze}>Reanalyze</span>
                                 )
                             }
@@ -698,7 +730,7 @@ export default function ReportPage() {
                             {/* Segment bar */}
                             <div className="timeline-track">
                                 {roomSegments.map((seg, idx) => {
-                                    const total = videoDuration || 1;
+                                    const total = segmentDuration || 1;
                                     const widthPct = ((seg.end - seg.start) / total) * 100;
                                     return (
                                         <div
@@ -724,11 +756,9 @@ export default function ReportPage() {
                             {/* Active room items - horizontal card scroll */}
                             {(() => {
                                 const activeSeg = activeSegmentIndex !== null ? roomSegments[activeSegmentIndex] : null;
-                                if (!activeSeg) return null;
-                                const activeRoomItems = [...items]
-                                    .filter(i => (i.room_name || 'General') === activeSeg.name)
-                                    .sort((a, b) => a.elapsed_seconds - b.elapsed_seconds);
-                                if (activeRoomItems.length === 0) return null;
+                                if (!activeSeg || activeSegmentIndex === null) return null;
+                                const activeRoomItems = rooms[activeSegmentIndex]?.items || [];
+                                if (!activeRoomItems || activeRoomItems.length === 0) return null;
 
                                 return (
                                     <div className="mt-3">
@@ -744,13 +774,13 @@ export default function ReportPage() {
                                         </div>
                                         <div className="flex gap-2.5 overflow-x-auto pb-2"
                                              style={{scrollbarWidth: 'thin'}}>
-                                            {activeRoomItems.map(item => {
+                                            {activeRoomItems.map((item: InspectionItem) => {
                                                 const cs = getConditionClass(item.condition);
                                                 return (
                                                     <div
                                                         key={item.id}
                                                         onClick={() => handleSeekItem(item.elapsed_seconds)}
-                                                        className="glass-panel shrink-0 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/[0.04] transition-all flex flex-col items-center gap-1.5 text-center"
+                                                        className="glass-panel shrink-0 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-white/4 transition-all flex flex-col items-center gap-1.5 text-center"
                                                         style={{width: '140px'}}
                                                     >
                                                         <div className="flex items-center gap-1.5">
@@ -786,7 +816,10 @@ export default function ReportPage() {
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-black tracking-tight">Inspection Items</h2>
                             <button
-                                onClick={() => { setNewRoomName(''); setAddingRoom(true); }}
+                                onClick={() => {
+                                    setNewRoomName('');
+                                    setAddingRoom(true);
+                                }}
                                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border-none"
                                 style={{background: 'var(--primary-bg)', color: 'var(--primary)'}}
                             >
@@ -794,10 +827,10 @@ export default function ReportPage() {
                             </button>
                         </div>
                         <p className="text-xs text-(--text-muted) mt-1">
-                            {items.length} items in {roomGroups.length} room{roomGroups.length !== 1 ? 's' : ''}
+                            {rooms.length} items in {rooms.length} room{rooms.length !== 1 ? 's' : ''}
                         </p>
 
-                        {items.length > 0 && (
+                        {rooms.length > 0 && (
                             <div className="flex gap-2 mt-3">
                                 {conditionStats.good > 0 && (
                                     <span
@@ -823,7 +856,7 @@ export default function ReportPage() {
 
                     {/* Room groups */}
                     <div className="flex-1 flex flex-col gap-3 pb-5">
-                        {sortedRoomGroups.length === 0 && (
+                        {rooms.length === 0 && (
                             <div className="glass-panel p-10 text-center text-(--text-muted)">
                                 <FileVideo size={32} className="mx-auto mb-3 opacity-40"/>
                                 <p className="text-sm font-bold">No inspection items yet</p>
@@ -832,241 +865,288 @@ export default function ReportPage() {
                         )}
 
                         <SortableProvider onSortEnd={handleRoomSortEnd}>
-                        {sortedRoomGroups.map((group, groupIdx) => {
-                            const isExpanded = expandedRooms.has(group.name);
-                            const roomColor = ROOM_COLORS[groupIdx % ROOM_COLORS.length];
-                            const issueCount = group.items.filter(i => i.severity && i.severity.toLowerCase() !== '').length;
+                            {rooms.map((room, roomIdx) => {
+                                const isExpanded = expandedRooms.has(room.name);
+                                const roomColor = ROOM_COLORS[roomIdx % ROOM_COLORS.length];
+                                const issueCount = room.items.filter((i: any) => i.severity && i.severity.toLowerCase() !== '').length;
 
-                            return (
-                                <SortableRoomWrapper key={group.name} id={group.name} index={groupIdx}>
-                                <div className="glass-panel overflow-hidden mb-0">
-                                    <div
-                                        className="flex items-center gap-2 px-3 py-3.5"
-                                        style={{borderLeft: `4px solid ${roomColor}`}}
-                                    >
-                                        {/* Drag handle */}
-                                        <div className="shrink-0 cursor-grab active:cursor-grabbing text-(--text-muted) opacity-40 hover:opacity-80 transition-opacity px-0.5">
-                                            <GripVertical size={15}/>
-                                        </div>
-                                        <div
-                                            onClick={() => toggleRoom(group.name)}
-                                            className="group/room flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
-                                        >
-                                            {isExpanded
-                                                ? <ChevronDown size={16} className="text-(--text-muted) shrink-0"/>
-                                                : <ChevronRight size={16} className="text-(--text-muted) shrink-0"/>
-                                            }
-                                            <span className="flex-1 font-bold text-[0.95rem]">{group.name}</span>
-                                            <span className="text-[0.7rem] text-(--text-muted) font-semibold">
-                                                {group.items.length} item{group.items.length !== 1 ? 's' : ''}
-                                            </span>
-                                            {issueCount > 0 && (
-                                                <span
-                                                    className="flex items-center gap-1 text-[0.65rem] font-bold px-2 py-0.5 rounded-md bg-red-500/12 text-red-500">
-                                                    <AlertTriangle size={10}/>{issueCount}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={() => addItem(group.name)}
-                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                                            title="Add item to this room"
-                                        >
-                                            <Plus size={14}/>
-                                        </button>
-                                        <button
-                                            onClick={() => openRenameRoom(group.name)}
-                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                                            title="Rename room"
-                                        >
-                                            <Pencil size={12}/>
-                                        </button>
-                                    </div>
+                                return (
+                                    <SortableRoomWrapper key={room.name} id={room.name} index={roomIdx}>
+                                        <div className="glass-panel overflow-hidden mb-0">
+                                            <div
+                                                className="flex items-center gap-2 px-3 py-3.5"
+                                                style={{borderLeft: `4px solid ${roomColor}`}}
+                                            >
+                                                {/* Drag handle */}
+                                                <div
+                                                    className="shrink-0 cursor-grab active:cursor-grabbing text-(--text-muted) opacity-40 hover:opacity-80 transition-opacity px-0.5">
+                                                    <GripVertical size={15}/>
+                                                </div>
+                                                <div
+                                                    onClick={() => toggleRoom(room.name)}
+                                                    className="group/room flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
+                                                >
+                                                    {isExpanded
+                                                        ? <ChevronDown size={16}
+                                                                       className="text-(--text-muted) shrink-0"/>
+                                                        : <ChevronRight size={16}
+                                                                        className="text-(--text-muted) shrink-0"/>
+                                                    }
+                                                    <span
+                                                        className="flex-1 font-bold text-[0.95rem]">{room.name}</span>
+                                                    <span className="text-[0.7rem] text-(--text-muted) font-semibold">
+                                                        {room.items.length} item{room.items.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                    {issueCount > 0 && (
+                                                        <span
+                                                            className="flex items-center gap-1 text-[0.65rem] font-bold px-2 py-0.5 rounded-md bg-red-500/12 text-red-500">
+                                                            <AlertTriangle size={10}/>{issueCount}
+                                                        </span>
+                                                    )}
+                                                </div>
 
-                                    {isExpanded && (
-                                        <div className="border-t border-white/8">
-                                            {group.items.map(item => {
-                                                const isEditing = editingItemId === item.id;
-                                                const cs = getConditionClass(isEditing ? editForm.condition : item.condition);
-                                                const sv = (isEditing ? editForm.severity : item.severity)
-                                                    ? SEVERITY_STYLE[(isEditing ? editForm.severity : item.severity).toLowerCase()]
-                                                    : null;
+                                                <button
+                                                    onClick={() => openRenameRoom(room)}
+                                                    className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                                    title="Rename room"
+                                                >
+                                                    <Pencil size={12}/>
+                                                </button>
 
-                                                if (isEditing) {
-                                                    return (
-                                                        <div key={item.id}
-                                                             className="flex flex-col gap-2.5 py-3 px-4 pl-7.5 border-b border-white/8 bg-white/[0.03]">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    <button
-                                                                        onClick={() => handleSeekItem(editForm.elapsed_seconds)}
-                                                                        className="flex items-center justify-center w-6 h-7 rounded-l-lg bg-blue-500/15 text-blue-400 border-none cursor-pointer"
-                                                                        title="Seek to this time"
-                                                                    >
-                                                                        <Play size={9} className="fill-blue-400"/>
-                                                                    </button>
+                                                <button
+                                                    onClick={() => handleDeleteRoom(room)}
+                                                    className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                                    title="Rename room"
+                                                >
+                                                    <Trash2 size={12}/>
+                                                </button>
+                                            </div>
+
+                                            {isExpanded && (
+                                                <div className="border-t border-white/8">
+                                                    {room.items.map((item: any) => {
+                                                        const isEditing = editingItemId === item.id;
+                                                        const cs = getConditionClass(isEditing ? editForm.condition : item.condition);
+                                                        const sv = (isEditing ? editForm.severity : item.severity)
+                                                            ? SEVERITY_STYLE[(isEditing ? editForm.severity : item.severity).toLowerCase()]
+                                                            : null;
+
+                                                        if (isEditing) {
+                                                            return (
+                                                                <div key={item.id}
+                                                                     className="flex flex-col gap-2.5 py-3 px-4 pl-7.5 border-b border-white/8 bg-white/3">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {
+                                                                            item.image ? (
+                                                                                <img src={item.image}
+                                                                                     className={'w-10 h-10 rounded-md object-cover'}
+                                                                                     alt={''}/>
+                                                                            ) : (
+                                                                                <div
+                                                                                    className="w-10 h-10 rounded-md bg-white/5 border border-white/10"></div>
+                                                                            )
+                                                                        }
+                                                                        <div
+                                                                            className="flex items-center gap-1 shrink-0">
+                                                                            <button
+                                                                                onClick={() => handleSeekItem(editForm.elapsed_seconds)}
+                                                                                className="flex items-center justify-center w-6 h-7 rounded-l-lg bg-blue-500/15 text-blue-400 border-none cursor-pointer"
+                                                                                title="Seek to this time"
+                                                                            >
+                                                                                <Play size={9}
+                                                                                      className="fill-blue-400"/>
+                                                                            </button>
+                                                                            <input
+                                                                                type="number"
+                                                                                min={0}
+                                                                                step={1}
+                                                                                value={editForm.elapsed_seconds}
+                                                                                onChange={e => setEditForm(f => ({
+                                                                                    ...f,
+                                                                                    elapsed_seconds: Math.max(0, parseInt(e.target.value) || 0)
+                                                                                }))}
+                                                                                className="w-16 px-1.5 py-1 text-center font-mono text-[0.7rem] font-bold rounded-r-lg bg-white/5 border border-white/10 text-blue-400 outline-none"
+                                                                            />
+                                                                            <span
+                                                                                className="text-[0.6rem] text-(--text-muted)">sec</span>
+                                                                        </div>
+                                                                        <input
+                                                                            value={editForm.item_name}
+                                                                            onChange={e => setEditForm(f => ({
+                                                                                ...f,
+                                                                                item_name: e.target.value
+                                                                            }))}
+                                                                            className="flex-1 px-2.5 py-1.5 text-sm font-bold rounded-lg bg-white/5 border border-white/10 text-foreground outline-none"
+                                                                            placeholder="Item name"
+                                                                        />
+                                                                    </div>
                                                                     <input
-                                                                        type="number"
-                                                                        min={0}
-                                                                        step={1}
-                                                                        value={editForm.elapsed_seconds}
+                                                                        value={editForm.description}
                                                                         onChange={e => setEditForm(f => ({
                                                                             ...f,
-                                                                            elapsed_seconds: Math.max(0, parseInt(e.target.value) || 0)
+                                                                            description: e.target.value
                                                                         }))}
-                                                                        className="w-16 px-1.5 py-1 text-center font-mono text-[0.7rem] font-bold rounded-r-lg bg-white/5 border border-white/10 text-blue-400 outline-none"
+                                                                        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-foreground outline-none"
+                                                                        placeholder="Description"
                                                                     />
-                                                                    <span
-                                                                        className="text-[0.6rem] text-[var(--text-muted)]">sec</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Select
+                                                                            value={editForm.condition}
+                                                                            onValueChange={v => setEditForm(f => ({
+                                                                                ...f,
+                                                                                condition: v
+                                                                            }))}
+                                                                        >
+                                                                            <SelectTrigger size="sm"
+                                                                                           className="flex-1 text-xs">
+                                                                                <SelectValue/>
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="New Item">New
+                                                                                    Item</SelectItem>
+                                                                                <SelectItem
+                                                                                    value="Good">Good</SelectItem>
+                                                                                <SelectItem
+                                                                                    value="Fair">Fair</SelectItem>
+                                                                                <SelectItem
+                                                                                    value="Poor">Poor</SelectItem>
+                                                                                <SelectItem value="Very Poor">Very
+                                                                                    Poor</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <Select
+                                                                            value={editForm.severity || '_none'}
+                                                                            onValueChange={v => setEditForm(f => ({
+                                                                                ...f,
+                                                                                severity: v === '_none' ? '' : v
+                                                                            }))}
+                                                                        >
+                                                                            <SelectTrigger size="sm"
+                                                                                           className="flex-1 text-xs">
+                                                                                <SelectValue/>
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="_none">No
+                                                                                    Issue</SelectItem>
+                                                                                <SelectItem value="Low">Low</SelectItem>
+                                                                                <SelectItem
+                                                                                    value="Medium">Medium</SelectItem>
+                                                                                <SelectItem
+                                                                                    value="High">High</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </div>
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button
+                                                                            onClick={() => deleteItem(room.id, item.id)}
+                                                                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border-none cursor-pointer mr-auto"
+                                                                        >
+                                                                            <Trash2 size={12}/> Delete
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={cancelEditItem}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/5 text-(--text-muted) border border-white/10 cursor-pointer"
+                                                                        >
+                                                                            <X size={12}/> Cancel
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => copyItem(item)}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-white/5 border-none text-(--text-muted) hover:text-amber-400 rounded-lg cursor-pointer"
+                                                                        >
+                                                                            <Clipboard size={12}/> Copy
+                                                                        </button>
+
+                                                                        <button
+                                                                            onClick={() => pasteItem(item)}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-white/5 border-none text-(--text-muted) hover:text-amber-400 rounded-lg cursor-pointer"
+                                                                        >
+                                                                            <ClipboardPaste size={12}/> Paste
+                                                                        </button>
+
+                                                                        {/* Screenshot button — only when video is available */}
+                                                                        {(inspection?.video_status === 'transcoded' || inspection?.video_status === 'uploded') && (
+                                                                            <button
+                                                                                onClick={() => handleCaptureItemImage(room.id, item)}
+                                                                                disabled={capturingItemId !== null}
+                                                                                title="Capture frame as item image"
+                                                                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-amber-400 disabled:opacity-30"
+                                                                            >
+                                                                                {capturingItemId === item.id
+                                                                                    ? <Loader2 size={16}
+                                                                                               className="animate-spin"/>
+                                                                                    : <Camera size={16}/>
+                                                                                }
+                                                                            </button>
+                                                                        )}
+
+                                                                        <button
+                                                                            onClick={() => saveEditItem(room.id)}
+                                                                            disabled={isSavingItem}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500 text-white border-none cursor-pointer"
+                                                                        >
+                                                                            {isSavingItem ? <Loader2 size={12}
+                                                                                                     className="animate-spin mr-1"/> :
+                                                                                <Check size={12}/>}
+                                                                            Save
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
-                                                                <input
-                                                                    value={editForm.item_name}
-                                                                    onChange={e => setEditForm(f => ({
-                                                                        ...f,
-                                                                        item_name: e.target.value
-                                                                    }))}
-                                                                    className="flex-1 px-2.5 py-1.5 text-sm font-bold rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
-                                                                    placeholder="Item name"
-                                                                />
-                                                            </div>
-                                                            <input
-                                                                value={editForm.description}
-                                                                onChange={e => setEditForm(f => ({
-                                                                    ...f,
-                                                                    description: e.target.value
-                                                                }))}
-                                                                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
-                                                                placeholder="Description"
-                                                            />
-                                                            <div className="flex items-center gap-2">
-                                                                <Select
-                                                                    value={editForm.condition}
-                                                                    onValueChange={v => setEditForm(f => ({
-                                                                        ...f,
-                                                                        condition: v
-                                                                    }))}
-                                                                >
-                                                                    <SelectTrigger size="sm" className="flex-1 text-xs">
-                                                                        <SelectValue/>
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="New Item">New
-                                                                            Item</SelectItem>
-                                                                        <SelectItem value="Good">Good</SelectItem>
-                                                                        <SelectItem value="Fair">Fair</SelectItem>
-                                                                        <SelectItem value="Poor">Poor</SelectItem>
-                                                                        <SelectItem value="Very Poor">Very
-                                                                            Poor</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                                <Select
-                                                                    value={editForm.severity || '_none'}
-                                                                    onValueChange={v => setEditForm(f => ({
-                                                                        ...f,
-                                                                        severity: v === '_none' ? '' : v
-                                                                    }))}
-                                                                >
-                                                                    <SelectTrigger size="sm" className="flex-1 text-xs">
-                                                                        <SelectValue/>
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="_none">No Issue</SelectItem>
-                                                                        <SelectItem value="Low">Low</SelectItem>
-                                                                        <SelectItem value="Medium">Medium</SelectItem>
-                                                                        <SelectItem value="High">High</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => deleteItem(item.id)}
-                                                                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border-none cursor-pointer mr-auto"
-                                                                >
-                                                                    <Trash2 size={12}/> Delete
-                                                                </button>
-                                                                <button
-                                                                    onClick={cancelEditItem}
-                                                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white/5 text-[var(--text-muted)] border border-white/10 cursor-pointer"
-                                                                >
-                                                                    <X size={12}/> Cancel
-                                                                </button>
-                                                                <button
-                                                                    onClick={saveEditItem}
-                                                                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-500 text-white border-none cursor-pointer"
-                                                                >
-                                                                    <Check size={12}/> Save
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
+                                                            );
+                                                        }
 
-                                                return (
-                                                    <div
-                                                        key={item.id}
-                                                        className="group flex items-center gap-3 py-2 px-4 pl-7.5 border-b border-white/8 text-[0.85rem] hover:bg-white/[0.02] transition-colors"
-                                                    >
-                                                        <button
-                                                            onClick={() => handleSeekItem(item.elapsed_seconds)}
-                                                            className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-mono text-[0.7rem] font-bold border-none cursor-pointer"
-                                                        >
-                                                            <Play size={9} className="fill-blue-400"/>
-                                                            {formatTime(item.elapsed_seconds)}
-                                                        </button>
+                                                        return (
+                                                            <div
+                                                                key={item.id}
+                                                                className="group flex items-center gap-3 py-2 px-4 pl-7.5 border-b border-white/8 text-[0.85rem] hover:bg-white/2 transition-colors"
+                                                            >
+                                                                <button
+                                                                    onClick={() => handleSeekItem(item.elapsed_seconds)}
+                                                                    className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-blue-500/15 text-blue-400 font-mono text-[0.7rem] font-bold border-none cursor-pointer"
+                                                                >
+                                                                    <Play size={9} className="fill-blue-400"/>
+                                                                    {formatTime(item.elapsed_seconds)}
+                                                                </button>
 
-                                                        {/* Item thumbnail */}
-                                                        {item.image && (
-                                                            <img
-                                                                src={item.image}
-                                                                alt=""
-                                                                className="shrink-0 w-8 h-8 rounded-md object-cover border border-white/10 cursor-pointer"
-                                                                onClick={() => window.open(item.image, '_blank')}
-                                                            />
-                                                        )}
-
-                                                        <div className="flex-1 min-w-0">
-                                                            <span className="font-bold text-foreground">{item.item_name}</span>
-                                                            {item.description && (
-                                                                <span className="text-(--text-muted) ml-2 text-xs">{item.description}</span>
-                                                            )}
-                                                        </div>
-                                                        {sv && (
-                                                            <span className={`shrink-0 text-[0.65rem] font-bold px-2 py-0.5 rounded-md ${sv.bg} ${sv.text}`}>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <span
+                                                                        className="font-bold text-foreground">{item.item_name}</span>
+                                                                    {item.description && (
+                                                                        <span
+                                                                            className="text-(--text-muted) ml-2 text-xs">{item.description}</span>
+                                                                    )}
+                                                                </div>
+                                                                {sv && (
+                                                                    <span
+                                                                        className={`shrink-0 text-[0.65rem] font-bold px-2 py-0.5 rounded-md ${sv.bg} ${sv.text}`}>
                                                                 {item.severity}
                                                             </span>
-                                                        )}
-                                                        <span className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
+                                                                )}
+                                                                <span
+                                                                    className={`shrink-0 text-[0.7rem] font-bold px-2.5 py-1 rounded-lg ${cs.bg} ${cs.text}`}>
                                                             {item.condition}
                                                         </span>
-                                                        {/* Screenshot button — only when video is available */}
-                                                        {(inspection?.video_status === 'transcoded' || inspection?.video_status === 'uploded') && (
-                                                            <button
-                                                                onClick={() => handleCaptureItemImage(item)}
-                                                                disabled={capturingItemId !== null}
-                                                                title="Capture frame as item image"
-                                                                className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-[var(--text-muted)] cursor-pointer hover:text-amber-400 disabled:opacity-30"
-                                                            >
-                                                                {capturingItemId === item.id
-                                                                    ? <Loader2 size={12} className="animate-spin"/>
-                                                                    : <Camera size={12}/>
-                                                                }
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => startEditItem(item)}
-                                                            className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-[var(--text-muted)] cursor-pointer hover:text-blue-400"
-                                                        >
-                                                            <Pencil size={12}/>
-                                                        </button>
+                                                                <button
+                                                                    onClick={() => startEditItem(item)}
+                                                                    className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/5 border-none text-(--text-muted) cursor-pointer hover:text-blue-400"
+                                                                >
+                                                                    <Pencil size={12}/>
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    <div
+                                                        onClick={() => addItem(room)}
+                                                        className={'py-4 flex items-center justify-center gap-2 text-(--text-muted) text-xs'}>
+                                                        <Plus size={14}/>
+                                                        <span>Add Item</span>
                                                     </div>
-                                                );
-                                            })}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                                </SortableRoomWrapper>
-                            );
-                        })}
+                                    </SortableRoomWrapper>
+                                );
+                            })}
                         </SortableProvider>
                     </div>
 
@@ -1087,7 +1167,7 @@ export default function ReportPage() {
                         </button>
                         <button
                             onClick={handleGeneratePDF}
-                            disabled={isGenerating || items.length === 0}
+                            disabled={isGenerating || rooms.length === 0}
                             className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-[0.95rem] font-bold text-white bg-indigo-500 border-none cursor-pointer shadow-[0_6px_20px_rgba(99,102,241,0.2)] disabled:opacity-40"
                         >
                             {isGenerating
@@ -1100,8 +1180,14 @@ export default function ReportPage() {
             </div>
 
             {/* Add Room Dialog */}
-            <Dialog open={addingRoom} onOpenChange={open => { if (!open) setAddingRoom(false); }}>
-                <DialogContent className="sm:max-w-sm" style={{background: 'var(--background)', border: '1px solid var(--panel-border)', overflow: 'hidden'}}>
+            <Dialog open={addingRoom} onOpenChange={open => {
+                if (!open) setAddingRoom(false);
+            }}>
+                <DialogContent className="sm:max-w-sm" style={{
+                    background: 'var(--background)',
+                    border: '1px solid var(--panel-border)',
+                    overflow: 'hidden'
+                }}>
                     <DialogHeader>
                         <DialogTitle>Add New Room</DialogTitle>
                     </DialogHeader>
@@ -1109,22 +1195,26 @@ export default function ReportPage() {
                         <input
                             value={newRoomName}
                             onChange={e => setNewRoomName(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') handleAddRoom(); }}
-                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') handleAddRoom();
+                            }}
+                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-foreground outline-none"
                             placeholder="e.g. Living Room, Bedroom 1..."
                             autoFocus
                         />
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setAddingRoom(false)}>Cancel</Button>
-                        <Button onClick={handleAddRoom} disabled={!newRoomName.trim()}>Add Room</Button>
+                        <Button onClick={handleAddRoom} disabled={!newRoomName.trim() || isSavingRoom}>
+                            {isSavingRoom ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : null}
+                            Add Room</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Rename Room Dialog */}
-            <Dialog open={!!renamingRoom} onOpenChange={open => {
-                if (!open) setRenamingRoom(null);
+            <Dialog open={!!editingRoom} onOpenChange={open => {
+                if (!open) setEditingRoom(null);
             }}>
                 <DialogContent className="sm:max-w-sm" style={{
                     background: 'var(--background)',
@@ -1141,15 +1231,15 @@ export default function ReportPage() {
                             onKeyDown={e => {
                                 if (e.key === 'Enter') handleRenameRoom();
                             }}
-                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-[var(--foreground)] outline-none"
+                            className="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-foreground outline-none"
                             placeholder="Room name"
                             autoFocus
                         />
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setRenamingRoom(null)}>Cancel</Button>
-                        <Button onClick={handleRenameRoom} disabled={isRenaming || !renameValue.trim()}>
-                            {isRenaming ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : null}
+                        <Button variant="outline" onClick={() => setEditingRoom(null)}>Cancel</Button>
+                        <Button onClick={handleRenameRoom} disabled={isSavingRoom || !renameValue.trim()}>
+                            {isSavingRoom ? <Loader2 className="w-4 h-4 animate-spin mr-1"/> : null}
                             Save
                         </Button>
                     </DialogFooter>

@@ -3,7 +3,6 @@
 import {useState} from "react";
 import Link from "next/link";
 import {Search, RefreshCcw, Plus} from "lucide-react";
-import ModalSettings from "@/components/frontend/ModalSettings";
 import ModalProperty from "@/components/frontend/ModalProperty";
 import PropertyClient from "@/components/frontend/PropertyClient";
 import ReportClient from "@/components/frontend/ReportClient";

@@ -63,6 +63,12 @@ export type InspectionVideo = {
     [key: string]: any;
 }
 
+export type InspectionRoom = {
+    id: number;
+    name: string;
+    [key: string]: any;
+}
+
 export type User = {
     id: number;
     name: string;
@@ -76,16 +82,10 @@ export type User = {
 }
 
 export type InspectionItem = {
-    id: number;
-    video_id: number;
-    room_name: string;
     item_name: string;
     description: string;
     condition: string;
     severity: string;
     elapsed_seconds: number;
-    image: string;
-    created_at: string;
-    updated_at: string;
     [key: string]: any;
 }

@@ -101,24 +101,6 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                         >
                             <Trash2 size={14} style={{margin: "auto"}}/>
                         </button>
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                router.push(`/report/${report.id}/edit`)
-                            }}
-                            title="Add to Property as Historical Visit"
-                            className={'text-3xl size-8 rounded-md bg-red-200/10 aspect-square text-gray-300 flex justify-center items-center cursor-pointer'}
-                        >
-                            <Link2 size={14} style={{margin: "auto"}}/>
-                        </button>
-                        <div style={{
-                            color: "var(--primary)",
-                            display: "flex",
-                            alignItems: "center"
-                        }}>
-                            <ChevronRight size={20}/>
-                        </div>
                     </div>
                 </div>
             </div>
