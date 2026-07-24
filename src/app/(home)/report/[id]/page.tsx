@@ -677,10 +677,19 @@ export default function ReportPage() {
                             <span className="text-xs text-gray-400">
                                 {t(`type_${inspection?.type}`)} · {dayjs(inspection.created_at).format('MMM DD, YYYY')}
                             </span>
-                            <span
-                                className={inspection?.status === 'completed' ? 'badge badge-success' : 'badge badge-warning'}>
-                                {capitalize(inspection?.status || '')}
-                            </span>
+                            {
+                                inspection?.video_status === 'transcoded' ? (
+                                    <span className={'badge badge-warning'}>
+                                        {capitalize(inspection?.video_status || '')}
+                                    </span>
+                                ):(
+                                    <span
+                                        className={inspection?.status === 'completed' ? 'badge badge-success' : 'badge badge-warning'}>
+                                        {capitalize(inspection?.status || '')}
+                                    </span>
+                                )
+                            }
+
                             {
                                 (inspection?.status === 'failed' || inspection?.status === 'completed') && (
                                     <span className={'badge badge-warning cursor-pointer'}
