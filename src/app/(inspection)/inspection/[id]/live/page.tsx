@@ -745,7 +745,8 @@ export default function InspectionLive() {
 
                             <button
                                 onClick={() => {
-                                    window.location.href = '/';
+                                    //window.location.href = '/';
+                                    router.push(`/report/${uploadReportId}`);
                                 }}
                                 className="mt-2 w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors"
                             >
