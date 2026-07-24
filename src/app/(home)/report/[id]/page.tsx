@@ -633,11 +633,22 @@ export default function ReportPage() {
                 <section className="flex flex-col flex-[1.4] p-6 overflow-y-auto border-r border-white/8">
                     {/* Header */}
                     <div className="flex justify-between items-center mb-5">
-                        <Link href={`/property/${property.id}`}
-                              className="flex items-center gap-2 text-foreground no-underline font-bold text-sm">
-                            <ChevronLeft size={20}/>
-                            Back to Property
-                        </Link>
+                        {
+                            inspection.property_id ? (
+                                <Link href={`/property/${inspection.property_id}`}
+                                      className="flex items-center gap-2 text-foreground no-underline font-bold text-sm">
+                                    <ChevronLeft size={20}/>
+                                    Back to Property
+                                </Link>
+                            ) : (
+                                <Link href={`/`}
+                                      className="flex items-center gap-2 text-foreground no-underline font-bold text-sm">
+                                    <ChevronLeft size={20}/>
+                                    Back to Home
+                                </Link>
+                            )
+                        }
+
                         <div className="flex gap-2.5">
                             <button
                                 onClick={() => router.push(`/report/${id}/edit`)}

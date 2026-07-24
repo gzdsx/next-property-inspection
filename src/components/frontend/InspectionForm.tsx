@@ -276,11 +276,12 @@ const InspectionForm = () => {
             const formData = new FormData();
             formData.append('status', 'draft');
             formData.append('video_status', 'draft');
-            formData.append('is_new', '1');
-            if (propertyId) formData.append('property_id', propertyId);
-            if (propertyAddress) formData.append('property_address', propertyAddress);
-            if (coverFile) formData.append('image', coverFile);
-            else if (safeReport.propertyCoverImage) formData.append('image', safeReport.propertyCoverImage);
+            if (propertyAddress) formData.append('address', propertyAddress);
+            if (coverFile) {
+                formData.append('image', coverFile);
+            } else if (safeReport.propertyCoverImage) {
+                formData.append('image', safeReport.propertyCoverImage);
+            }
             if (notes) formData.append('subtext', notes);
             if (pdfFile) formData.append('pdfFile', pdfFile);
             floorplanFiles.forEach(f => formData.append('room_images[]', f));
@@ -329,7 +330,6 @@ const InspectionForm = () => {
             const {propertyId, propertyAddress, notes, pdfFile} = safeReport;
             const formData = new FormData();
             formData.append('status', 'draft');
-            if (propertyId) formData.append('propertyId', propertyId);
             if (propertyAddress) formData.append('propertyAddress', propertyAddress);
             if (coverFile) formData.append('propertyCoverImage', coverFile);
             else if (safeReport.propertyCoverImage) formData.append('propertyCoverImage', safeReport.propertyCoverImage);

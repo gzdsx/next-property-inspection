@@ -704,7 +704,7 @@ export function useGeminiLive() {
             mediaStreamRef.current?.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
             // 等待 500ms 确保浏览器底层完成最后的切片封装
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
         //if (recordedChunksRef.current.length === 0) return;

@@ -53,7 +53,7 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                         fontWeight: "bold",
                         lineHeight: "1.3"
                     }} className="truncate">
-                        {report.property?.name}
+                        {report.address}
                     </h3>
                     <p className={'text-sm text-gray-500 mt-1'}>
                         {report.user ? `By ${report.user.name}` : "AI Automated Inspection"}
