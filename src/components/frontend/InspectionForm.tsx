@@ -303,7 +303,7 @@ const InspectionForm = () => {
                 .map((v) => v.src);
             //console.log('completedUrlsRef.current', completedUrlsRef.current);
             //await apiPost(`/inspections/${inspectionId}/videos/batch`, completedUrlsRef.current);
-            await apiPost(`/inspections/${inspectionId}/videos/merge`, {videoSources});
+            await apiPost(`/inspections/${inspectionId}/merge-videos`, {videoSources});
 
             // Step 4: AI analysis
             setOfflineStatusStep(4);
