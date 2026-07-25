@@ -678,7 +678,7 @@ export default function ReportPage() {
                                 {t(`type_${inspection?.type}`)} · {dayjs(inspection.created_at).format('MMM DD, YYYY')}
                             </span>
                             {
-                                inspection?.video_status === 'transcoded' ? (
+                                inspection?.video_status !== 'transcoded' ? (
                                     <span className={'badge badge-warning'}>
                                         {capitalize(inspection?.video_status || '')}
                                     </span>
