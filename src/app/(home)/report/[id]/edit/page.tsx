@@ -96,7 +96,7 @@ export default function InspectionEditPage() {
                 mime_type: f.file.type,
             }));
 
-            await apiPost(`/inspections/${id}/videos/merge`, {videos: videoSources});
+            await apiPost(`/inspections/${id}/merge-videos`, {videos: videoSources});
 
             clearAll();
             toast.success('Videos merged successfully');
