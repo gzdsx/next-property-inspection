@@ -276,6 +276,7 @@ const InspectionForm = () => {
             const formData = new FormData();
             formData.append('status', 'draft');
             formData.append('video_status', 'draft');
+            if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('address', propertyAddress);
             if (coverFile) {
                 formData.append('image', coverFile);
@@ -330,6 +331,7 @@ const InspectionForm = () => {
             const {propertyId, propertyAddress, notes, pdfFile} = safeReport;
             const formData = new FormData();
             formData.append('status', 'draft');
+            if (propertyId) formData.append('property_id', propertyId);
             if (propertyAddress) formData.append('address', propertyAddress);
             if (coverFile) formData.append('image', coverFile);
             else if (safeReport.propertyCoverImage) formData.append('image', safeReport.propertyCoverImage);

@@ -266,7 +266,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                         <button
                             type="submit"
                             disabled={submiting}
-                            className="px-6 h-[38px] bg-blue-500 border-none rounded-lg text-white font-bold cursor-pointer disabled:opacity-50"
+                            className="px-6 h-9.5 bg-blue-500 border-none rounded-lg text-white font-bold cursor-pointer disabled:opacity-50"
                         >
                             {submiting ? <Spinner/> : 'Save Property'}
                         </button>

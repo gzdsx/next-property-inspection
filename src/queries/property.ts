@@ -5,7 +5,7 @@ export function usePropertyQuery(id: number | string) {
     return useQuery({
         queryKey: ['property', id],
         queryFn: () => apiGet(`/properties/${id}`),
-        initialData: {}
+        placeholderData: {}
     });
 }
 
@@ -13,7 +13,7 @@ export function usePropertyListQuery(params?: any) {
     return useQuery({
         queryKey: ['properties', params],
         queryFn: () => apiGet(`/properties`, params),
-        initialData: {
+        placeholderData: {
             total: 0,
             items: []
         }

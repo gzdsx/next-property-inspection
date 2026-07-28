@@ -9,7 +9,7 @@ import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
     AlertTriangle, Loader2, Pencil, X, Trash2, Plus, Clock, Layers, Camera,
-    GripVertical, Clipboard, ClipboardPaste,
+    GripVertical, Clipboard, ClipboardPaste, Home,
 } from 'lucide-react';
 import SortableProvider from '@/components/common/SortableProvider';
 import {useSortable} from '@dnd-kit/react/sortable';
@@ -27,6 +27,7 @@ import {useInspectionQuery, useUpdateInspectionMutation} from "@/queries/inspect
 import dayjs from "dayjs";
 import {useConfirm, useSpinner} from "@/contexts/AppContext";
 import {useCreateMaterialMutation} from "@/queries/material";
+import ModalChooseProperty from "@/components/frontend/ModalChooseProperty";
 
 const CONDITION_STYLE: Record<string, { bg: string; text: string }> = {
     'new item': {bg: 'bg-emerald-500/15', text: 'text-emerald-400'},
@@ -118,6 +119,8 @@ export default function ReportPage() {
     const [newRoomName, setNewRoomName] = useState('');
     const [isSavingRoom, setIsSavingRoom] = useState(false);
     const [isSavingItem, setIsSavingItem] = useState(false);
+
+    const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
 
     const intervalRef = useRef<any>(null);
 
@@ -634,8 +637,8 @@ export default function ReportPage() {
                     {/* Header */}
                     <div className="flex justify-between items-center mb-5">
                         {
-                            inspection.property_id ? (
-                                <Link href={`/property/${inspection.property_id}`}
+                            inspection.property ? (
+                                <Link href={`/property/${inspection.property?.id}`}
                                       className="flex items-center gap-2 text-foreground no-underline font-bold text-sm">
                                     <ChevronLeft size={20}/>
                                     Back to Property
@@ -663,6 +666,13 @@ export default function ReportPage() {
                             >
                                 <Share2 size={16}/>
                                 Share
+                            </button>
+                            <button
+                                onClick={() => setIsPropertyModalOpen(true)}
+                                className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm text-foreground"
+                            >
+                                <Home size={16}/>
+                                Property
                             </button>
                         </div>
                     </div>
@@ -1271,6 +1281,17 @@ export default function ReportPage() {
                     label="Tenant Signature"
                     onSave={handleSignatureSaved}
                     onClose={() => setShowSignaturePad(false)}
+                />
+            )}
+
+            {isPropertyModalOpen && (
+                <ModalChooseProperty
+                    onClose={() => setIsPropertyModalOpen(false)}
+                    onChoose={(property: any) => {
+                        updateInspection({id, data: {property_id: property.id}} as any);
+                        setInspection((prev: any) => ({...prev, property_id: property.id, property}));
+                        setIsPropertyModalOpen(false);
+                    }}
                 />
             )}
         </>

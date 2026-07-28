@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import dayjs from "dayjs";
-import {ChevronRight, Link2, Trash2} from "lucide-react";
+import {ChevronRight, Home, Link2, Trash2} from "lucide-react";
 import {useRouter} from "next/navigation";
 
 interface ReportCardProps {
     report: any,
-    onDelete?: (report: any) => void
+    onDelete?: (report: any) => void,
+    onClickHome?: (report: any) => void,
+    onClickEdit?: (report: any) => void
 }
 
-const ReportCard = ({report, onDelete}: ReportCardProps) => {
+const ReportCard = ({report, onDelete,onClickHome}: ReportCardProps) => {
     const router = useRouter();
     const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
@@ -94,6 +96,16 @@ const ReportCard = ({report, onDelete}: ReportCardProps) => {
                               {dayjs(report.created_at).format("MMM D, YYYY")}
                             </span>
                     <div style={{display: "flex", gap: "8px"}}>
+                        <button
+                            onClick={(event)=>{
+                                event.stopPropagation();
+                                onClickHome?.(report);
+                            }}
+                            title="Bind Property"
+                            className={'text-3xl size-8 rounded-md bg-red-200/10 aspect-square flex justify-center items-center cursor-pointer'}
+                        >
+                            <Home size={14} style={{margin: "auto"}}/>
+                        </button>
                         <button
                             onClick={handleDelete}
                             title="Delete report"

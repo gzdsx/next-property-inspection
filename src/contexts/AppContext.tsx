@@ -117,7 +117,7 @@ export function AppProvider({children}: { children: React.ReactNode }) {
             {
                 isSpinnerOpen && (
                     <div
-                        className={'absolute w-full h-full left-0 top-0 bg-black/50 flex flex-col gap-y-2 items-center justify-center z-50'}>
+                        className={'absolute w-full h-full left-0 top-0 bg-black/50 flex flex-col gap-y-2 items-center justify-center z-9999!'}>
                         <Spinner className={'size-8'}/>
                         <p className={'text-white text-sm ml-2'}>{spinnerDescription}</p>
                     </div>

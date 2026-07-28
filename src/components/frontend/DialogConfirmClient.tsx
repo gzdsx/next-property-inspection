@@ -25,7 +25,7 @@ export const DialogConfirmClient = (props: DialogConfirmClientProps) => {
     const {title = 'Are you absolutely sure?', message, onConfirm, onCancel} = props;
     return (
         <AlertDialog open={props.open}>
-            <AlertDialogContent className={'bg-black border-gray-600'}>
+            <AlertDialogContent className={'bg-black border-gray-600 z-999!'}>
                 <AlertDialogHeader>
                     <AlertDialogTitle>{title}</AlertDialogTitle>
                     <AlertDialogDescription>{message}</AlertDialogDescription>
