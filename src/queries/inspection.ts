@@ -1,6 +1,5 @@
 import {useMutation, UseMutationOptions, useQuery} from "@tanstack/react-query";
 import {apiDelete, apiGet, apiPost, apiPut} from "@/lib/api";
-import {Inspection} from "@/types";
 
 export function useInspectionQuery(id: number | string) {
     return useQuery({

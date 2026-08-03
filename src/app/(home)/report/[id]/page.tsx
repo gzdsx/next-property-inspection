@@ -553,52 +553,53 @@ export default function ReportPage() {
     };
 
     const handleGeneratePDF = async () => {
-        setIsGenerating(true);
-        const property = inspection?.property;
-        const user = inspection?.user;
-        const profile: InspectorProfile = {
-            companyName: user?.company_name || 'Real Estate Agency',
-            inspectorName: user?.name || 'Inspector',
-            phone: user?.phone_number || '',
-            email: user?.email || '',
-            reference: user?.reference || String(id),
-        };
-        const now = new Date();
-        const day = now.getDate();
-        const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
-        const dateStr = `${now.toLocaleString('en-GB', {month: 'long'})} ${day}${suffix} ${now.getFullYear()}`;
-
-        try {
-            let coverBase64: string | undefined;
-            if (property?.image) {
-                try {
-                    const src = property.image.startsWith('http') || property.image.startsWith('/')
-                        ? property.image : `/uploads/${property.image}`;
-                    coverBase64 = await imageUrlToBase64(src);
-                } catch {
-                }
-            }
-            generateInspectionReport({
-                address: property?.name || 'Inspection Report',
-                date: dateStr,
-                records: rooms.map(item => ({
-                    id: String(item.id),
-                    room_name: item.room_name,
-                    item_name: item.item_name,
-                    description: item.description,
-                    condition: item.condition,
-                    severity: item.severity,
-                    elapsedSeconds: item.elapsed_seconds,
-                })),
-                inspector: profile,
-                coverPhotoBase64: coverBase64,
-                tenantSignatureBase64: signatureBase64 || undefined,
-            });
-        } catch {
-            alert('Failed to generate report.');
-        } finally {
-            setIsGenerating(false);
-        }
+        window.open(inspection.links?.pdf.href);
+        // setIsGenerating(true);
+        // const property = inspection?.property;
+        // const user = inspection?.user;
+        // const profile: InspectorProfile = {
+        //     companyName: user?.company_name || 'Real Estate Agency',
+        //     inspectorName: user?.name || 'Inspector',
+        //     phone: user?.phone_number || '',
+        //     email: user?.email || '',
+        //     reference: user?.reference || String(id),
+        // };
+        // const now = new Date();
+        // const day = now.getDate();
+        // const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th';
+        // const dateStr = `${now.toLocaleString('en-GB', {month: 'long'})} ${day}${suffix} ${now.getFullYear()}`;
+        //
+        // try {
+        //     let coverBase64: string | undefined;
+        //     if (property?.image) {
+        //         try {
+        //             const src = property.image.startsWith('http') || property.image.startsWith('/')
+        //                 ? property.image : `/uploads/${property.image}`;
+        //             coverBase64 = await imageUrlToBase64(src);
+        //         } catch {
+        //         }
+        //     }
+        //     generateInspectionReport({
+        //         address: property?.name || 'Inspection Report',
+        //         date: dateStr,
+        //         records: rooms.map(item => ({
+        //             id: String(item.id),
+        //             room_name: item.room_name,
+        //             item_name: item.item_name,
+        //             description: item.description,
+        //             condition: item.condition,
+        //             severity: item.severity,
+        //             elapsedSeconds: item.elapsed_seconds,
+        //         })),
+        //         inspector: profile,
+        //         coverPhotoBase64: coverBase64,
+        //         tenantSignatureBase64: signatureBase64 || undefined,
+        //     });
+        // } catch {
+        //     alert('Failed to generate report.');
+        // } finally {
+        //     setIsGenerating(false);
+        // }
     };
 
     const handleReanalyze = () => {
