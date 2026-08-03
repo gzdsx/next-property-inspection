@@ -411,7 +411,7 @@ const InspectionForm = () => {
                             {language === 'zh' ? '登出' : 'Log Out'}
                         </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                         <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50">
                             <span
                                 className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider mb-0.5">
@@ -488,7 +488,7 @@ const InspectionForm = () => {
                                     <span>🔗 {language === 'zh' ? '已成功关联旧房源数据' : 'Property linked'}</span>
                                     <span className="font-mono">{report.propertyId}</span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 text-blue-600/80 pt-1">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-blue-600/80 pt-1">
                                     <div>🏠 {currentProperty?.type}</div>
                                     <div>📊 {currentProperty?.views || 0} {language === 'zh' ? '次历史巡检' : 'past visits'}</div>
                                     <div>🛏️ {currentProperty?.bedrooms || 0} Bed ·

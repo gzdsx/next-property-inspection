@@ -13,6 +13,11 @@ export const metadata: Metadata = {
     description: "Interactive Inspection Video Portal",
 };
 
+export const viewport = {
+    width: 'device-width',
+    initialScale: 1,
+};
+
 export default async function RootLayout({
                                              children,
                                          }: Readonly<{
@@ -21,9 +26,6 @@ export default async function RootLayout({
     const session = await auth();
     return (
         <html lang="en" suppressHydrationWarning>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
-        </head>
         <body suppressHydrationWarning>
         <LocaleProvider>
             {

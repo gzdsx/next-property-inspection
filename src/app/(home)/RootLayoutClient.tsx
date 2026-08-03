@@ -17,10 +17,10 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
     const theme = 'dark';
 
     const navItems = [
-        {href: '/', icon: HomeIcon, title: 'Dashboard'},
+        {href: '/', icon: HomeIcon, title: 'Home'},
         {href: '/properties', icon: Building2, title: 'Properties'},
         {href: '/inspections', icon: ClipboardList, title: 'Inspections'},
-        {href: '/staff', icon: Users, title: 'Staff Management'},
+        {href: '/staff', icon: Users, title: 'Staff'},
         {href: '/analytics', icon: BarChart3, title: 'Analytics'},
         {href: '/profile', icon: Settings, title: 'Profile'},
     ];
@@ -52,55 +52,9 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                         </nav>
                     </div>
 
-                    {/* User Avatar & Menu */}
-                    <div style={{position: "relative"}}>
-                        <div className="sidebar-avatar" onClick={() => setIsProfileOpen(!isProfileOpen)}>
-                            {"Z"}
-                        </div>
-
-                        {isProfileOpen && (
-                            <div className="profile-popup">
-                                <div className="profile-popup-item" style={{
-                                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                                    paddingBottom: "12px",
-                                    cursor: "default"
-                                }}>
-                                    <div>
-                                        <p style={{
-                                            margin: 0,
-                                            fontWeight: "bold",
-                                            fontSize: "0.85rem",
-                                            color: "var(--foreground)"
-                                        }}>
-                                            {inspectorProfile.inspectorName}
-                                        </p>
-                                        <p style={{margin: 0, fontSize: "0.7rem", color: "var(--text-muted)"}}>
-                                            {inspectorProfile.companyName}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="profile-popup-item" onClick={() => {
-                                    setIsProfileOpen(false);
-                                }}>
-                                    {theme === "dark" ? <Sun size={16}/> : <Moon size={16}/>}
-                                    <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-                                </div>
-                                <div className="profile-popup-item" onClick={() => {
-                                    setIsProfileOpen(false);
-                                    router.push('/profile');
-                                }}>
-                                    <Settings size={16}/>
-                                    <span>Settings</span>
-                                </div>
-                                <div className="profile-popup-item" style={{color: "var(--danger)"}}
-                                     onClick={async () => {
-                                         await signOut();
-                                     }}>
-                                    <LogOut size={16}/>
-                                    <span>Log Out</span>
-                                </div>
-                            </div>
-                        )}
+                    {/* User Avatar (desktop) */}
+                    <div className="sidebar-avatar" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                        {inspectorProfile.inspectorName?.[0] || "Z"}
                     </div>
                 </aside>
 
@@ -109,7 +63,75 @@ export const RootLayoutClient = ({children}: { children: React.ReactNode }) => {
                         {children}
                     </main>
                 </div>
+
+                {/* Profile menu popup (shared by desktop sidebar + mobile tab bar) */}
+                {isProfileOpen && (
+                    <div className="profile-popup">
+                        <div className="profile-popup-item" style={{
+                            borderBottom: "1px solid rgba(255,255,255,0.05)",
+                            paddingBottom: "12px",
+                            cursor: "default"
+                        }}>
+                            <div>
+                                <p style={{
+                                    margin: 0,
+                                    fontWeight: "bold",
+                                    fontSize: "0.85rem",
+                                    color: "var(--foreground)"
+                                }}>
+                                    {inspectorProfile.inspectorName}
+                                </p>
+                                <p style={{margin: 0, fontSize: "0.7rem", color: "var(--text-muted)"}}>
+                                    {inspectorProfile.companyName}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="profile-popup-item" onClick={() => {
+                            setIsProfileOpen(false);
+                        }}>
+                            {theme === "dark" ? <Sun size={16}/> : <Moon size={16}/>}
+                            <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+                        </div>
+                        <div className="profile-popup-item" onClick={() => {
+                            setIsProfileOpen(false);
+                            router.push('/profile');
+                        }}>
+                            <Settings size={16}/>
+                            <span>Settings</span>
+                        </div>
+                        <div className="profile-popup-item" style={{color: "var(--danger)"}}
+                             onClick={async () => {
+                                 await signOut();
+                             }}>
+                            <LogOut size={16}/>
+                            <span>Log Out</span>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Mobile bottom tab bar (shown below lg) */}
+            <nav className="mobile-tabbar">
+                {navItems.filter(item => item.href !== '/profile').map(item => (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        className={isActive(item.href) ? 'active' : ''}
+                        title={item.title}
+                    >
+                        <item.icon size={20}/>
+                        <span>{item.title}</span>
+                    </Link>
+                ))}
+                <button
+                    type="button"
+                    className="tab-avatar"
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    title="Account"
+                >
+                    <span className="sidebar-avatar">{inspectorProfile.inspectorName?.[0] || "Z"}</span>
+                </button>
+            </nav>
         </QueryClientProvider>
     );
 };

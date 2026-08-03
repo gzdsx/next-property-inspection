@@ -154,7 +154,7 @@ export default function SharedRoomDetailPage() {
       <div className="main-viewport" style={{ padding: "24px", overflowY: "auto" }}>
         
         {/* Header Block */}
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        <header style={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <div>
             <Link href={`/shared/${id}`} style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--text-muted)", textDecoration: "none", fontSize: "0.8rem", fontWeight: "bold", marginBottom: "4px" }}>
               <ChevronLeft size={16} />

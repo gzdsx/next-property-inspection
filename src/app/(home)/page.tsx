@@ -106,7 +106,7 @@ export default function Home() {
 
     return (
         <>
-            <header className="dashboard-header">
+            <header className="dashboard-header flex-wrap gap-4">
                 <div>
                     <h1 style={{fontSize: "1.75rem", fontWeight: "900", letterSpacing: "-0.5px"}}>
                         Video Inspections
@@ -116,12 +116,12 @@ export default function Home() {
                     </p>
                 </div>
 
-                <div className={'flex gap-4 w-full max-w-150 justify-end'}>
+                <div className={'flex flex-wrap gap-3 w-full max-w-full md:max-w-150 justify-end'}>
                     {/* Search Bar */}
-                    <div className="flex flex-row items-center gap-2 border border-gray-700 rounded-full px-4">
+                    <div className="flex flex-row items-center gap-2 border border-gray-700 rounded-full px-4 flex-1 min-w-[180px]">
                         <input
                             type="text"
-                            className="px-4"
+                            className="px-4 w-full"
                             placeholder="Search properties, visits, rooms..."
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}

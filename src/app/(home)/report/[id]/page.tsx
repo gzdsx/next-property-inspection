@@ -4,7 +4,6 @@ import Link from 'next/link';
 import {useRef, useState, useEffect, useMemo, useCallback} from 'react';
 import {useParams, useRouter} from 'next/navigation';
 import SignaturePad from '@/components/common/SignaturePad';
-import {generateInspectionReport, InspectorProfile} from '@/lib/generateReport';
 import {
     FileSignature, ChevronLeft, Share2, Check, Edit2,
     Play, MapPin, FileVideo, ChevronDown, ChevronRight,
@@ -553,7 +552,9 @@ export default function ReportPage() {
     };
 
     const handleGeneratePDF = async () => {
-        window.open(inspection.links?.pdf.href);
+        if (inspection?.links?.pdf?.href) {
+            window.open(inspection.links.pdf.href);
+        }
         // setIsGenerating(true);
         // const property = inspection?.property;
         // const user = inspection?.user;
@@ -632,11 +633,11 @@ export default function ReportPage() {
 
     return (
         <>
-            <div className="main-viewport flex-row!">
+            <div className="main-viewport flex-col md:flex-row!">
                 {/* ── Left: Video Player ──────────────────────────────────── */}
-                <section className="flex flex-col flex-[1.4] p-6 overflow-y-auto border-r border-white/8">
+                <section className="flex flex-col flex-[1.4] p-4 md:p-6 overflow-y-auto md:border-r border-white/8">
                     {/* Header */}
-                    <div className="flex justify-between items-center mb-5">
+                    <div className="flex flex-wrap gap-2 justify-between items-center mb-5">
                         {
                             inspection.property ? (
                                 <Link href={`/property/${inspection.property?.id}`}
@@ -653,7 +654,7 @@ export default function ReportPage() {
                             )
                         }
 
-                        <div className="flex gap-2.5">
+                        <div className="flex flex-wrap gap-2.5">
                             <button
                                 onClick={() => router.push(`/report/${id}/edit`)}
                                 className="glass-panel flex items-center gap-2 px-4 py-2.5 cursor-pointer font-bold text-sm text-foreground"
@@ -842,7 +843,7 @@ export default function ReportPage() {
                 </section>
 
                 {/* ── Right: Inspection Items ─────────────────────────────── */}
-                <section className="flex flex-col flex-1 p-6 overflow-y-auto bg-white/1.5">
+                <section className="flex flex-col flex-1 p-4 md:p-6 overflow-y-auto bg-white/1.5">
                     <div className="mb-5">
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-black tracking-tight">Inspection Items</h2>
@@ -1067,7 +1068,7 @@ export default function ReportPage() {
                                                                             </SelectContent>
                                                                         </Select>
                                                                     </div>
-                                                                    <div className="flex justify-end gap-2">
+                                                                    <div className="flex flex-wrap justify-end gap-2">
                                                                         <button
                                                                             onClick={() => deleteItem(room.id, item.id)}
                                                                             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border-none cursor-pointer mr-auto"

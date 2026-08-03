@@ -9,7 +9,7 @@ interface InspectionGridProps {
 
 const InspectionGrid = ({data,onDeleted}: InspectionGridProps) => {
     return (
-        <div className={'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6'}>
+        <div className={'property-grid'}>
             {data.map((item, index) => (
                 <InspectionCard inspection={item} key={`inspection-card-${item.id}`} onDeleted={onDeleted} />
             ))}

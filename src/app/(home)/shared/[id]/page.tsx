@@ -225,10 +225,10 @@ export default function SharedReportPage() {
   return (
     <div className="dashboard-layout" style={{ paddingLeft: 0 }}>
       {/* ── MAIN REPORT CONTENT ────────────────────────────────────────────── */}
-      <div className="main-viewport" style={{ flexDirection: "row" }}>
+      <div className="main-viewport flex-col md:flex-row!">
         
         {/* Left Half: Continuous Video Timeline Player */}
-        <section style={{ flex: 1.5, display: "flex", flexDirection: "column", padding: "24px", overflowY: "auto", borderRight: "1px solid var(--panel-border)" }}>
+        <section className="shared-left" style={{ flex: 1.5, display: "flex", flexDirection: "column", padding: "24px", overflowY: "auto", borderRight: "1px solid var(--panel-border)" }}>
           {/* Shared Read-only Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -295,7 +295,7 @@ export default function SharedReportPage() {
         </section>
 
         {/* Right Half: Room grid cards indicator list */}
-        <section style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px", overflowY: "auto", background: "rgba(10, 15, 26, 0.15)" }}>
+        <section className="shared-right" style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px", overflowY: "auto", background: "rgba(10, 15, 26, 0.15)" }}>
           <div style={{ marginBottom: "20px" }}>
             <h2 style={{ fontSize: "1.25rem", fontWeight: "900", letterSpacing: "-0.4px" }}>
               {meta?.address || "Shared Property Inspection"}

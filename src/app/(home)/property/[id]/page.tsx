@@ -139,7 +139,7 @@ export default function PropertyDetailPage() {
                 }
             </section>
 
-            <div style={{
+            <div className="float-bar-wrapper" style={{
                 position: "fixed",
                 bottom: "32px",
                 left: "calc(50% + var(--sidebar-width)/2)",

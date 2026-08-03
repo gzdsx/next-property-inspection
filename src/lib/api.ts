@@ -85,13 +85,28 @@ export async function apiFetch(endpoint: string, {data, params, ...options}: Fet
         }
 
         if (!response.ok) {
-            //console.error('response:',response);
-            const errorData = await response.json();
-            //console.log('response:',errorData);
+            let errorData: any = {};
+            const contentType = response.headers.get("content-type");
+
+            if (contentType && contentType.includes("application/json")) {
+                try {
+                    errorData = await response.json();
+                } catch {
+                    errorData = { message: `请求失败，HTTP 状态码: ${response.status}` };
+                }
+            } else {
+                // 如果不是 JSON（比如 500 HTML 页面或 502 网关报错），安全读取为文本
+                const errorText = await response.text();
+                errorData = {
+                    message: errorText || `HTTP 错误: ${response.status}`,
+                    rawText: errorText
+                };
+            }
+
             throw {
-                status: errorData.code,
-                message: errorData.message || '请求失败',
-                errors: errorData.errors, // Laravel 的表单验证错误通常放在这里
+                status: errorData.code || response.status,
+                message: errorData.message || `请求失败 (${response.status})`,
+                errors: errorData.errors || null,
             };
         }
 

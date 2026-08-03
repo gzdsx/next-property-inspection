@@ -129,7 +129,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
 
                 {/* Form */}
                 <form method="post" onSubmit={handleAddPropertySubmit} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="p-6 overflow-y-auto flex-1 grid grid-cols-2 gap-6">
+                    <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Left Column */}
                         <div className="flex flex-col gap-4">
                             {/* Name */}
@@ -215,7 +215,7 @@ const ModalProperty = ({onClose, onSave, property: defaultProperty, editMode}: M
                             </div>
 
                             {/* Room counts */}
-                            <div className="grid grid-cols-2 gap-3.5 border-b border-white/8 pb-3.5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 border-b border-white/8 pb-3.5">
                                 <div className="flex flex-col gap-1.5">
                                     <label className="text-xs font-bold text-gray-500">Bedrooms</label>
                                     <NumberInput value={property.bedrooms || 1}
