@@ -30,9 +30,12 @@ const SortableProvider = ({children, onSortEnd}: SortableProviderProps) => {
                 const newIndex = source.index;
                 if (oldIndex === newIndex) return;
 
-                setTimeout(() => {
-                    onSortEnd?.(oldIndex, newIndex);
-                }, 500);
+                // Update state synchronously. @dnd-kit's OptimisticSortingPlugin
+                // already physically reorders the DOM nodes on drag, so deferring
+                // the state update (e.g. via setTimeout) leaves React's vdom out of
+                // sync with the moved DOM. Any re-render in that gap crashes with
+                // "Failed to execute 'insertBefore' on 'Node'".
+                onSortEnd?.(oldIndex, newIndex);
             }}
         >
             {children}
